@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitcoin Address Balance</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Bitcoin Address Balance</h1>
+    <p class="sub">Look up the current balance of any Bitcoin address using mempool.space.</p>
+
+    <label for="address">Bitcoin address</label>
+    <div class="row">
+      <input
+        id="address"
+        type="text"
+        placeholder="e.g. bc1q... or 1A1zP1..."
+        spellcheck="false"
+        autocomplete="off"
+      />
+      <button id="lookupBtn" type="button">Check</button>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <section id="result" class="result" aria-live="polite">
+      <div class="balance-btc" id="balanceBtc">0.00000000 BTC</div>
+      <div class="balance-usd" id="balanceUsd">≈ $0.00 USD</div>
+      <div class="meta" id="meta"></div>
+    </section>
+
+    <p class="footer">
+      Data from <a href="https://mempool.space" target="_blank" rel="noopener">mempool.space</a>
+    </p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

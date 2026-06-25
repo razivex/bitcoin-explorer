@@ -1,0 +1,138 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #0f1419;
+  color: #e7e9ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: #1a2332;
+  border: 1px solid #2d3a4d;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  color: #f7931a;
+}
+
+p.sub {
+  margin: 0 0 24px;
+  color: #9aa7b8;
+  font-size: 0.95rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #b8c4d4;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 1px solid #3a4d66;
+  border-radius: 10px;
+  background: #0f1419;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+input:focus {
+  border-color: #f7931a;
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.2);
+}
+
+button {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #f7931a;
+  color: #111;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover { background: #ffaa33; }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.result {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #111820;
+  border: 1px solid #2d3a4d;
+  display: none;
+}
+
+.result.show { display: block; }
+
+.balance-btc {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.balance-usd {
+  font-size: 1.1rem;
+  color: #9aa7b8;
+}
+
+.meta {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #2d3a4d;
+  font-size: 0.85rem;
+  color: #7f8fa3;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.error {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(220, 53, 69, 0.15);
+  border: 1px solid rgba(220, 53, 69, 0.4);
+  color: #ff8f9a;
+  display: none;
+}
+
+.error.show { display: block; }
+
+.footer {
+  margin-top: 18px;
+  font-size: 0.8rem;
+  color: #6b7c90;
+  text-align: center;
+}
+
+.footer a {
+  color: #f7931a;
+  text-decoration: none;
+}
