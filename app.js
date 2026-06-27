@@ -2,7 +2,6 @@ const API_BASE = "https://mempool.space/api";
 const SATS_PER_BTC = 100_000_000;
 const UPDATE_INTERVAL_MS = 10000;
 const BALANCE_SUB_FADE_MS = 600;
-
 const addressInput = document.getElementById("address");
 const lookupBtn = document.getElementById("lookupBtn");
 const resultEl = document.getElementById("result");
@@ -16,18 +15,18 @@ const cardEl = document.querySelector(".card");
 const metaAddressLabelEl = document.getElementById("metaAddressLabel");
 const metaAddressEl = document.getElementById("metaAddress");
 const metaAddressTypeEl = document.getElementById("metaAddressType");
+const metaExposedPubKeyEl = document.getElementById("metaExposedPubKey");
 const metaTransactionsEl = document.getElementById("metaTransactions");
-const metaConfirmationsEl = document.getElementById("metaConfirmations");
-const metaConfirmationDateEl = document.getElementById("metaConfirmationDate");
-const timeSinceEl = document.getElementById("timeSince");
+const metaLastTxDateEl = document.getElementById("metaLastTxDate");
+const timeSinceLastEl = document.getElementById("timeSinceLast");
 
-let timeSinceInterval = null;
+let timeSinceLastInterval = null;
 let balanceSubInterval = null;
 let autoRefreshInterval = null;
 let refreshInFlight = false;
 let lookupGeneration = 0;
 let currentLookupInput = null;
-let lastConfirmedTimestamp = null;
+let lastTxTimestamp = null;
 let cachedUsdPrice = 0;
 let balanceSubState = {
   hasUnconfirmed: false,
@@ -48,9 +47,9 @@ function clearError() {
 }
 
 function stopTimeSinceTimer() {
-  if (timeSinceInterval !== null) {
-    clearInterval(timeSinceInterval);
-    timeSinceInterval = null;
+  if (timeSinceLastInterval !== null) {
+    clearInterval(timeSinceLastInterval);
+    timeSinceLastInterval = null;
   }
 }
 
@@ -115,10 +114,10 @@ function startBalanceSubCycle(usdText, unconfirmedText) {
   }, UPDATE_INTERVAL_MS);
 }
 
-function setupBalanceSub(totalBtc, unconfirmedSats, unconfirmedBtc, usdPrice) {
+function setupBalanceSub(confirmedBtc, unconfirmedSats, unconfirmedBtc, usdPrice) {
   stopBalanceSubCycle();
 
-  const usdText = `≈ ${formatUsd(totalBtc * usdPrice)} USD`;
+  const usdText = `≈ ${formatUsd(confirmedBtc * usdPrice)} USD`;
   balanceSubState.usdText = usdText;
 
   if (unconfirmedSats > 0) {
@@ -138,19 +137,19 @@ function setupBalanceSub(totalBtc, unconfirmedSats, unconfirmedBtc, usdPrice) {
 }
 
 function updateBalanceSubSilently(
-  totalBtc,
+  confirmedBtc,
   unconfirmedSats,
   unconfirmedBtc,
   usdPrice,
 ) {
-  const usdText = `≈ ${formatUsd(totalBtc * usdPrice)} USD`;
+  const usdText = `≈ ${formatUsd(confirmedBtc * usdPrice)} USD`;
   const hasUnconfirmed = unconfirmedSats > 0;
   const unconfirmedText = hasUnconfirmed
     ? `${formatBtc(unconfirmedBtc)} BTC unconfirmed`
     : "";
 
   if (hasUnconfirmed !== balanceSubState.hasUnconfirmed) {
-    setupBalanceSub(totalBtc, unconfirmedSats, unconfirmedBtc, usdPrice);
+    setupBalanceSub(confirmedBtc, unconfirmedSats, unconfirmedBtc, usdPrice);
     return;
   }
 
@@ -257,6 +256,29 @@ async function fetchUsdPrice() {
   return cachedUsdPrice;
 }
 
+function hasSpentOutputs(stats) {
+  if (!stats) return false;
+
+  const spentCount = Number(stats.spent_txo_count) || 0;
+  const spentSum = Number(stats.spent_txo_sum) || 0;
+  return spentCount > 0 || spentSum > 0;
+}
+
+function isPublicKeyExposed(lookupMode, addressData) {
+  if (lookupMode === "pubkey") {
+    return true;
+  }
+
+  return (
+    hasSpentOutputs(addressData.chain_stats) ||
+    hasSpentOutputs(addressData.mempool_stats)
+  );
+}
+
+function formatExposedPubKey(exposed) {
+  return exposed ? "Yes" : "No";
+}
+
 function getAddressType(address, { isPublicKey = false } = {}) {
   const normalized = address.trim();
   if (!normalized) return "Unknown";
@@ -358,21 +380,14 @@ function startTimeSinceTimer(fromDate) {
   if (!fromDate) return;
 
   const tick = () => {
-    timeSinceEl.textContent = formatTimeSince(getTimeSinceParts(fromDate));
+    timeSinceLastEl.textContent = formatTimeSince(getTimeSinceParts(fromDate));
   };
 
   tick();
-  timeSinceInterval = setInterval(tick, 1000);
+  timeSinceLastInterval = setInterval(tick, 1000);
 }
 
-function calcConfirmations(tx, tipHeight) {
-  if (!tx?.status?.confirmed || !tx.status.block_height) {
-    return 0;
-  }
-  return tipHeight - tx.status.block_height + 1;
-}
-
-function getLastTxTimestamp(tx) {
+function getTxTimestamp(tx) {
   const blockTime = tx?.status?.block_time;
   if (!blockTime) return null;
   return new Date(blockTime * 1000);
@@ -384,14 +399,6 @@ async function fetchJson(url) {
     throw new Error(`API error (${response.status})`);
   }
   return response.json();
-}
-
-async function fetchText(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`API error (${response.status})`);
-  }
-  return response.text();
 }
 
 async function loadAddressData(address) {
@@ -425,31 +432,26 @@ async function loadAddressData(address) {
     throw new Error("Invalid address response");
   }
 
-  const [chainTxs, tipHeightText, usdPrice] = await Promise.all([
+  const txCount = addressData.chain_stats.tx_count ?? 0;
+
+  const [chainTxs, usdPrice] = await Promise.all([
     fetchJson(`${API_BASE}/${apiBasePath}/${encodedQueryKey}/txs/chain`).catch(
       () => [],
     ),
-    fetchText(`${API_BASE}/blocks/tip/height`).catch(() => "0"),
     fetchUsdPrice(),
   ]);
 
-  const tipHeight = Number.parseInt(tipHeightText, 10) || 0;
   const confirmedSats = calcBalance(addressData.chain_stats);
   const unconfirmedSats = calcBalance(addressData.mempool_stats);
-  const totalSats = confirmedSats + unconfirmedSats;
-  const totalBtc = satsToBtc(totalSats);
+  const confirmedBtc = satsToBtc(confirmedSats);
   const unconfirmedBtc = satsToBtc(unconfirmedSats);
   const lastConfirmedTx = Array.isArray(chainTxs) ? chainTxs[0] : null;
 
-  let lastTxConfirmations = "N/A";
   let lastTxDate = "N/A";
   let lastTxDateObj = null;
 
   if (lastConfirmedTx) {
-    lastTxConfirmations = String(
-      calcConfirmations(lastConfirmedTx, tipHeight),
-    );
-    lastTxDateObj = getLastTxTimestamp(lastConfirmedTx);
+    lastTxDateObj = getTxTimestamp(lastConfirmedTx);
     if (lastTxDateObj) {
       lastTxDate = formatDateTime(lastTxDateObj);
     }
@@ -458,33 +460,33 @@ async function loadAddressData(address) {
   return {
     addressData,
     lookupMode: lookupTarget.mode,
-    totalBtc,
+    confirmedBtc,
     unconfirmedSats,
     unconfirmedBtc,
     usdPrice,
     addressType: getAddressType(addressData.address, {
       isPublicKey: isPublicKeyLookup,
     }),
-    txCount: addressData.chain_stats.tx_count ?? 0,
-    lastTxConfirmations,
+    exposedPubKey: isPublicKeyExposed(lookupTarget.mode, addressData),
+    txCount,
     lastTxDate,
     lastTxDateObj,
   };
 }
 
 function applyAddressData(data, { silent = false } = {}) {
-  balanceBtcEl.textContent = `${formatBtc(data.totalBtc)} BTC`;
+  balanceBtcEl.textContent = `${formatBtc(data.confirmedBtc)} BTC`;
 
   if (silent) {
     updateBalanceSubSilently(
-      data.totalBtc,
+      data.confirmedBtc,
       data.unconfirmedSats,
       data.unconfirmedBtc,
       data.usdPrice,
     );
   } else {
     setupBalanceSub(
-      data.totalBtc,
+      data.confirmedBtc,
       data.unconfirmedSats,
       data.unconfirmedBtc,
       data.usdPrice,
@@ -495,20 +497,20 @@ function applyAddressData(data, { silent = false } = {}) {
     data.lookupMode === "pubkey" ? "Public Key:" : "Address:";
   metaAddressEl.textContent = data.addressData.address;
   metaAddressTypeEl.textContent = data.addressType;
+  metaExposedPubKeyEl.textContent = formatExposedPubKey(data.exposedPubKey);
   metaTransactionsEl.textContent = data.txCount;
-  metaConfirmationsEl.textContent = data.lastTxConfirmations;
-  metaConfirmationDateEl.textContent = data.lastTxDate;
+  metaLastTxDateEl.textContent = data.lastTxDate;
 
-  const nextTimestamp = data.lastTxDateObj?.getTime() ?? null;
+  const nextLastTimestamp = data.lastTxDateObj?.getTime() ?? null;
   if (data.lastTxDateObj) {
-    if (nextTimestamp !== lastConfirmedTimestamp) {
-      lastConfirmedTimestamp = nextTimestamp;
+    if (nextLastTimestamp !== lastTxTimestamp) {
+      lastTxTimestamp = nextLastTimestamp;
       startTimeSinceTimer(data.lastTxDateObj);
     }
   } else {
-    lastConfirmedTimestamp = null;
+    lastTxTimestamp = null;
     stopTimeSinceTimer();
-    timeSinceEl.textContent = "N/A";
+    timeSinceLastEl.textContent = "N/A";
   }
 
   currentLookupInput = data.addressData.address;
@@ -554,7 +556,7 @@ async function lookupAddress() {
   stopAutoRefresh();
   hideQrPanel();
   currentLookupInput = null;
-  lastConfirmedTimestamp = null;
+  lastTxTimestamp = null;
 
   const address = addressInput.value.trim();
   if (!address) {

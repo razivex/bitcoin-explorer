@@ -6,10 +6,10 @@ Data is fetched live from the [mempool.space](https://mempool.space) public API.
 
 ## What it is used for
 
-- **Check how much BTC an address or public key holds** (confirmed + unconfirmed)
-- **See the USD value** of the balance in real time
-- **Inspect on-chain activity** — script type, transaction count, and last confirmation details
-- **Track how long ago** the last confirmed transaction was received
+- **Check confirmed BTC balance** for any address or public key (unconfirmed shown separately)
+- **See the USD value** of the confirmed balance in real time
+- **Inspect on-chain activity** — script type, exposed pubkey status, transaction count, and last transaction details
+- **Track how long ago** the last confirmed transaction occurred
 - **Share or receive payments** via a scannable QR code
 - **Monitor live** — data refreshes automatically every 10 seconds
 
@@ -64,34 +64,48 @@ When the user clicks **Check**, `app.js` runs this pipeline:
 
 1. **Classify the input** — `pubkey-utils.js` decides whether the string is a standard address or a hex-encoded secp256k1 public key.
 2. **Resolve the API target** — depending on the input type, the app queries a different mempool.space endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
-3. **Fetch on-chain data in parallel**:
-   - balance statistics (`chain_stats` + `mempool_stats`)
-   - confirmed transaction history (most recent tx first)
-   - current chain tip height (for confirmation count)
-   - BTC/USD spot price
-4. **Compute derived values** — total BTC balance, USD estimate, address/script type, confirmations on the latest confirmed tx, and formatted confirmation timestamp.
+3. **Fetch on-chain data** — three lightweight API calls:
+   - address or scripthash statistics (`chain_stats` + `mempool_stats`)
+   - the most recent confirmed transaction (`/txs/chain`, first page)
+   - BTC/USD spot price (`/v1/prices`)
+4. **Compute derived values** — confirmed BTC balance, USD estimate, script type, exposed pubkey status, last transaction date, and formatted timestamps.
 5. **Render the result panel** and start live timers.
 
 ### Balance calculation
 
-Balances are computed from Esplora-style statistics returned by the API:
+The main balance display shows **confirmed** funds only:
 
 ```
 confirmed sats = chain_stats.funded_txo_sum − chain_stats.spent_txo_sum
-unconfirmed sats = mempool_stats.funded_txo_sum − mempool_stats.spent_txo_sum
-total BTC = (confirmed sats + unconfirmed sats) / 100,000,000
+confirmed BTC = confirmed sats / 100,000,000
 ```
 
-The USD line uses the live price from `GET /api/v1/prices`. If the price request fails, the last successful price is reused.
+Unconfirmed mempool balance is tracked separately and shown in the subtitle when present:
+
+```
+unconfirmed sats = mempool_stats.funded_txo_sum − mempool_stats.spent_txo_sum
+```
+
+The USD line is based on the **confirmed** balance using the live price from `GET /api/v1/prices`. If the price request fails, the last successful price is reused.
+
+### Exposed public key
+
+The **Exposed PubKey** field indicates whether the public key for this lookup is visible on-chain:
+
+| Input | Result |
+|---|---|
+| Public key hex (P2PK lookup) | **Yes** — the key itself is being viewed |
+| Address with spent outputs | **Yes** — spending reveals the pubkey in the transaction input |
+| Address that only received, never spent | **No** |
 
 ### Live updates
 
-Three independent timers keep the UI fresh after a successful lookup:
+Two independent timers keep the UI fresh after a successful lookup:
 
 | Timer | Interval | Purpose |
 |---|---|---|
 | Auto-refresh | 10 s | Silently re-fetches all on-chain data from mempool.space |
-| Time since confirmation | 1 s | Updates the human-readable elapsed time counter |
+| Time since last transaction | 1 s | Updates the human-readable elapsed time counter |
 | USD / unconfirmed cycle | 10 s | When unconfirmed funds exist, alternates the subtitle between USD value and unconfirmed BTC (with a fade transition) |
 
 Auto-refresh uses a generation counter so stale responses from earlier lookups are ignored if the user submits a new input before the request finishes.
@@ -168,8 +182,8 @@ This app follows mempool.space and queries the **P2PK scripthash** when you past
 
 | Field | Description |
 |---|---|
-| **BTC Balance** | Total balance in BTC (confirmed + unconfirmed combined) |
-| **USD / Unconfirmed** | Shows USD value when there is no pending balance. If unconfirmed BTC exists, alternates every 10 seconds between USD value and the unconfirmed amount |
+| **BTC Balance** | Confirmed balance in BTC |
+| **USD / Unconfirmed** | USD value of the confirmed balance. If unconfirmed BTC exists, alternates every 10 seconds between USD value and the unconfirmed amount |
 
 ### Details
 
@@ -177,10 +191,10 @@ This app follows mempool.space and queries the **P2PK scripthash** when you past
 |---|---|
 | **Address / Public Key** | The value that was looked up |
 | **Address Type** | `P2PK`, `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, or `P2TR` |
+| **Exposed PubKey** | `Yes` if the public key is visible on-chain, `No` otherwise |
 | **Transactions** | Total number of confirmed transactions |
-| **Confirmations** | Confirmations on the **last confirmed transaction** (not pending ones) |
-| **Confirmation Date** | When that transaction was mined (`DD/MM/YYYY HH:MM:SS AM/PM`) |
-| **Time Since Last Confirmation** | Live counter, updated every second |
+| **Last Transaction Date** | When the most recent confirmed transaction was mined (`DD/MM/YYYY HH:MM:SS AM/PM`) |
+| **Time Since Last Transaction** | Live counter, updated every second |
 
 ## Files
 
