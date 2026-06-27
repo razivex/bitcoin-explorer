@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bitcoin Address Balance</title>
+  <title>Bitcoin Address Explorer</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -38,15 +39,13 @@
         ></button>
         <ul id="langMenu" class="lang-menu" role="listbox" hidden>
           <li role="presentation">
-            <button class="lang-menu__option lang-menu__option--en" type="button" data-lang="en" role="option">
+            <button class="lang-menu__option lang-menu__option--en" type="button" data-lang="en" role="option" aria-label="English">
               <span class="lang-menu__flag" aria-hidden="true"></span>
-              <span class="lang-menu__label">English</span>
             </button>
           </li>
           <li role="presentation">
-            <button class="lang-menu__option lang-menu__option--pt-BR" type="button" data-lang="pt-BR" role="option">
+            <button class="lang-menu__option lang-menu__option--pt-BR" type="button" data-lang="pt-BR" role="option" aria-label="Português">
               <span class="lang-menu__flag" aria-hidden="true"></span>
-              <span class="lang-menu__label">Português</span>
             </button>
           </li>
         </ul>
@@ -55,7 +54,7 @@
   </header>
 
   <main class="card">
-    <h1 data-i18n="pageHeading">Bitcoin Address Balance</h1>
+    <h1 data-i18n="pageHeading">Bitcoin Address Explorer</h1>
     <p class="sub" data-i18n="pageSub">Real time check any bitcoin address or pubkey, including balance, transactions, and other important datas</p>
 
     <label for="address" data-i18n="addressLabel">Bitcoin address or public key</label>

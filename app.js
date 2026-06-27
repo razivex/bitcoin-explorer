@@ -28,12 +28,14 @@ let refreshInFlight = false;
 let lookupGeneration = 0;
 let currentLookupInput = null;
 let lastTxTimestamp = null;
-let cachedUsdPrice = 0;
+let cachedPrices = {};
 let balanceSubState = {
   hasUnconfirmed: false,
   showingUsd: true,
   usdText: "",
   unconfirmedText: "",
+  arrowUp: false,
+  arrowDown: false,
 };
 let txWatchState = {
   initialized: false,
@@ -121,18 +123,82 @@ function detectAndPlayTxSounds(data, { silent = false } = {}) {
   };
 }
 
-function formatUsd(value) {
+function formatFiat(value) {
   return value.toLocaleString(getLocale(), {
     style: "currency",
-    currency: "USD",
+    currency: getDisplayCurrency(),
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 }
 
-function setBalanceSubText(text, animate = true) {
+function buildFiatText(confirmedBtc) {
+  const price = getFiatPrice();
+  const currency = getDisplayCurrency();
+  return `≈ ${formatFiat(confirmedBtc * price)} ${currency}`;
+}
+
+function getUnconfirmedArrowState(mempoolStats) {
+  const funded = Number(mempoolStats?.funded_txo_sum) || 0;
+  const spent = Number(mempoolStats?.spent_txo_sum) || 0;
+
+  return {
+    up: funded > 0,
+    down: spent > 0,
+  };
+}
+
+function hasUnconfirmedActivity(unconfirmedSats, mempoolStats) {
+  if (unconfirmedSats !== 0) return true;
+
+  const funded = Number(mempoolStats?.funded_txo_sum) || 0;
+  const spent = Number(mempoolStats?.spent_txo_sum) || 0;
+  return funded > 0 || spent > 0;
+}
+
+function formatUnconfirmedText(unconfirmedSats, unconfirmedBtc) {
+  const absAmount = formatBtc(Math.abs(unconfirmedBtc));
+  const signedAmount = unconfirmedSats < 0 ? `-${absAmount}` : absAmount;
+  return t("btcUnconfirmed", { amount: signedAmount });
+}
+
+function renderBalanceSubLine(text, { showArrows = false } = {}) {
+  balanceUnconfirmedEl.replaceChildren();
+
+  if (
+    showArrows &&
+    (balanceSubState.arrowUp || balanceSubState.arrowDown)
+  ) {
+    const arrows = document.createElement("span");
+    arrows.className = "balance-unconfirmed__arrows";
+    arrows.setAttribute("aria-hidden", "true");
+
+    if (balanceSubState.arrowUp) {
+      const upArrow = document.createElement("span");
+      upArrow.className = "balance-arrow balance-arrow--up";
+      upArrow.textContent = "▲";
+      arrows.appendChild(upArrow);
+    }
+
+    if (balanceSubState.arrowDown) {
+      const downArrow = document.createElement("span");
+      downArrow.className = "balance-arrow balance-arrow--down";
+      downArrow.textContent = "▼";
+      arrows.appendChild(downArrow);
+    }
+
+    balanceUnconfirmedEl.appendChild(arrows);
+  }
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "balance-unconfirmed__text";
+  textSpan.textContent = text;
+  balanceUnconfirmedEl.appendChild(textSpan);
+}
+
+function setBalanceSubText(text, animate = true, { showArrows = false } = {}) {
   if (!animate) {
-    balanceUnconfirmedEl.textContent = text;
+    renderBalanceSubLine(text, { showArrows });
     balanceUnconfirmedEl.classList.remove("is-fading");
     return;
   }
@@ -140,7 +206,7 @@ function setBalanceSubText(text, animate = true) {
   balanceUnconfirmedEl.classList.add("is-fading");
 
   setTimeout(() => {
-    balanceUnconfirmedEl.textContent = text;
+    renderBalanceSubLine(text, { showArrows });
     balanceUnconfirmedEl.classList.remove("is-fading");
   }, BALANCE_SUB_FADE_MS);
 }
@@ -153,42 +219,56 @@ function startBalanceSubCycle(usdText, unconfirmedText) {
     showingUsd: true,
     usdText,
     unconfirmedText,
+    arrowUp: balanceSubState.arrowUp,
+    arrowDown: balanceSubState.arrowDown,
   };
 
-  balanceUnconfirmedEl.textContent = usdText;
+  renderBalanceSubLine(usdText);
   balanceUnconfirmedEl.classList.remove("is-fading");
 
   balanceSubInterval = setInterval(() => {
     balanceSubState.showingUsd = !balanceSubState.showingUsd;
+    const showingUnconfirmed = !balanceSubState.showingUsd;
     setBalanceSubText(
-      balanceSubState.showingUsd
-        ? balanceSubState.usdText
-        : balanceSubState.unconfirmedText,
+      showingUnconfirmed
+        ? balanceSubState.unconfirmedText
+        : balanceSubState.usdText,
+      true,
+      { showArrows: showingUnconfirmed },
     );
   }, UPDATE_INTERVAL_MS);
 }
 
-function setupBalanceSub(confirmedBtc, unconfirmedSats, unconfirmedBtc, usdPrice) {
+function setupBalanceSub(
+  confirmedBtc,
+  unconfirmedSats,
+  unconfirmedBtc,
+  fiatPrice,
+  mempoolStats,
+) {
   stopBalanceSubCycle();
 
-  const usdText = `≈ ${formatUsd(confirmedBtc * usdPrice)} USD`;
-  balanceSubState.usdText = usdText;
+  const fiatText = buildFiatText(confirmedBtc);
+  balanceSubState.usdText = fiatText;
 
-  if (unconfirmedSats > 0) {
-    const unconfirmedText = t("btcUnconfirmed", {
-      amount: formatBtc(unconfirmedBtc),
-    });
-    startBalanceSubCycle(usdText, unconfirmedText);
+  if (hasUnconfirmedActivity(unconfirmedSats, mempoolStats)) {
+    const unconfirmedText = formatUnconfirmedText(
+      unconfirmedSats,
+      unconfirmedBtc,
+    );
+    startBalanceSubCycle(fiatText, unconfirmedText);
     return;
   }
 
   balanceSubState = {
     hasUnconfirmed: false,
     showingUsd: true,
-    usdText,
+    usdText: fiatText,
     unconfirmedText: "",
+    arrowUp: false,
+    arrowDown: false,
   };
-  balanceUnconfirmedEl.textContent = usdText;
+  renderBalanceSubLine(fiatText);
   balanceUnconfirmedEl.classList.remove("is-fading");
 }
 
@@ -196,31 +276,39 @@ function updateBalanceSubSilently(
   confirmedBtc,
   unconfirmedSats,
   unconfirmedBtc,
-  usdPrice,
+  fiatPrice,
+  mempoolStats,
 ) {
-  const usdText = `≈ ${formatUsd(confirmedBtc * usdPrice)} USD`;
-  const hasUnconfirmed = unconfirmedSats > 0;
+  const fiatText = buildFiatText(confirmedBtc);
+  const hasUnconfirmed = hasUnconfirmedActivity(unconfirmedSats, mempoolStats);
   const unconfirmedText = hasUnconfirmed
-    ? t("btcUnconfirmed", { amount: formatBtc(unconfirmedBtc) })
+    ? formatUnconfirmedText(unconfirmedSats, unconfirmedBtc)
     : "";
 
   if (hasUnconfirmed !== balanceSubState.hasUnconfirmed) {
-    setupBalanceSub(confirmedBtc, unconfirmedSats, unconfirmedBtc, usdPrice);
+    setupBalanceSub(
+      confirmedBtc,
+      unconfirmedSats,
+      unconfirmedBtc,
+      fiatPrice,
+      mempoolStats,
+    );
     return;
   }
 
-  balanceSubState.usdText = usdText;
+  balanceSubState.usdText = fiatText;
   balanceSubState.unconfirmedText = unconfirmedText;
 
   if (!hasUnconfirmed) {
-    balanceUnconfirmedEl.textContent = usdText;
+    renderBalanceSubLine(fiatText);
     return;
   }
 
-  const visibleText = balanceSubState.showingUsd
-    ? balanceSubState.usdText
-    : balanceSubState.unconfirmedText;
-  setBalanceSubText(visibleText, false);
+  const showingUnconfirmed = !balanceSubState.showingUsd;
+  const visibleText = showingUnconfirmed
+    ? balanceSubState.unconfirmedText
+    : balanceSubState.usdText;
+  setBalanceSubText(visibleText, false, { showArrows: showingUnconfirmed });
 }
 
 function getQrSize() {
@@ -289,27 +377,31 @@ function isValidAddressData(addressData) {
   );
 }
 
-function parseUsdPrice(prices) {
+function parseFiatPrice(prices, currency = getDisplayCurrency()) {
   if (!prices || typeof prices !== "object") return 0;
 
-  const raw = prices.USD ?? prices.usd;
+  const raw = prices[currency] ?? prices[currency.toLowerCase()];
   const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-async function fetchUsdPrice() {
+function getFiatPrice() {
+  return parseFiatPrice(cachedPrices);
+}
+
+async function fetchFiatPrice() {
   try {
     const prices = await fetchJson(`${API_BASE}/v1/prices`);
-    const price = parseUsdPrice(prices);
+    cachedPrices = prices;
+    const price = parseFiatPrice(prices);
     if (price > 0) {
-      cachedUsdPrice = price;
       return price;
     }
   } catch (err) {
     console.error(err);
   }
 
-  return cachedUsdPrice;
+  return getFiatPrice();
 }
 
 function hasSpentOutputs(stats) {
@@ -497,11 +589,11 @@ async function loadAddressData(address) {
   const txCount = addressData.chain_stats.tx_count ?? 0;
   const mempoolTxCount = addressData.mempool_stats?.tx_count ?? 0;
 
-  const [chainTxs, usdPrice] = await Promise.all([
+  const [chainTxs, fiatPrice] = await Promise.all([
     fetchJson(`${API_BASE}/${apiBasePath}/${encodedQueryKey}/txs/chain`).catch(
       () => [],
     ),
-    fetchUsdPrice(),
+    fetchFiatPrice(),
   ]);
 
   const confirmedSats = calcBalance(addressData.chain_stats);
@@ -526,7 +618,7 @@ async function loadAddressData(address) {
     confirmedBtc,
     unconfirmedSats,
     unconfirmedBtc,
-    usdPrice,
+    fiatPrice,
     addressType: getAddressType(addressData.address, {
       isPublicKey: isPublicKeyLookup,
     }),
@@ -542,19 +634,25 @@ async function loadAddressData(address) {
 function applyAddressData(data, { silent = false } = {}) {
   balanceBtcEl.textContent = `${formatBtc(data.confirmedBtc)} BTC`;
 
+  const arrows = getUnconfirmedArrowState(data.addressData.mempool_stats);
+  balanceSubState.arrowUp = arrows.up;
+  balanceSubState.arrowDown = arrows.down;
+
   if (silent) {
     updateBalanceSubSilently(
       data.confirmedBtc,
       data.unconfirmedSats,
       data.unconfirmedBtc,
-      data.usdPrice,
+      data.fiatPrice,
+      data.addressData.mempool_stats,
     );
   } else {
     setupBalanceSub(
       data.confirmedBtc,
       data.unconfirmedSats,
       data.unconfirmedBtc,
-      data.usdPrice,
+      data.fiatPrice,
+      data.addressData.mempool_stats,
     );
   }
 

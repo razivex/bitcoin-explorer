@@ -7,11 +7,14 @@ Data is fetched live from the [mempool.space](https://mempool.space) public API.
 ## What it is used for
 
 - **Check confirmed BTC balance** for any address or public key (unconfirmed shown separately)
-- **See the USD value** of the confirmed balance in real time
+- **See the fiat value** of the confirmed balance in real time (USD or BRL)
 - **Inspect on-chain activity** — script type, exposed pubkey status, transaction count, and last transaction details
 - **Track how long ago** the last confirmed transaction occurred
+- **Monitor mempool activity** — directional arrows show pending incoming and outgoing funds
+- **Get audio alerts** when new unconfirmed or confirmed transactions are detected
 - **Share or receive payments** via a scannable QR code
 - **Monitor live** — data refreshes automatically every 10 seconds
+- **Switch language** between English and Brazilian Portuguese
 
 Useful for quickly verifying a donation address, checking a wallet balance, or exploring legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
 
@@ -27,6 +30,18 @@ Then visit `http://localhost:8080`.
 
 2. Paste a **Bitcoin address** or **public key in hex**.
 3. Click **Check**.
+
+### Navigation bar
+
+The top bar runs across the full width of the page and includes:
+
+| Control | Location | Purpose |
+|---|---|---|
+| **Bitcoin logo** | Left | Hover to see the current chain tip block height (preloaded on page load) |
+| **Sound toggle** | Right | Mute or unmute transaction alert sounds |
+| **Language picker** | Right | Switch between English (US flag) and Portuguese (Brazil flag) |
+
+Language and sound preferences are saved in `localStorage`.
 
 ### Supported inputs
 
@@ -50,12 +65,12 @@ The application is a static single-page interface made of plain HTML, CSS, and J
 │  styles.css │                     │  (orchestration) │
 └─────────────┘                     └────────┬─────────┘
                                              │
-                         ┌───────────────────┼───────────────────┐
-                         ▼                   ▼                   ▼
-                 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-                 │pubkey-utils  │    │ mempool.space│    │ qrcode (CDN) │
-                 │.js           │    │ REST API     │    │ QR rendering │
-                 └──────────────┘    └──────────────┘    └──────────────┘
+              ┌──────────────────────────────┼──────────────────────────────┐
+              ▼              ▼               ▼               ▼              ▼
+      ┌──────────────┐ ┌──────────┐  ┌──────────────┐ ┌──────────┐  ┌──────────────┐
+      │pubkey-utils  │ │  i18n.js │  │ mempool.space│ │sounds.js │  │ qrcode (CDN) │
+      │.js           │ │          │  │ REST API     │ │          │  │ QR rendering │
+      └──────────────┘ └──────────┘  └──────────────┘ └──────────┘  └──────────────┘
 ```
 
 ### Lookup flow
@@ -67,8 +82,8 @@ When the user clicks **Check**, `app.js` runs this pipeline:
 3. **Fetch on-chain data** — three lightweight API calls:
    - address or scripthash statistics (`chain_stats` + `mempool_stats`)
    - the most recent confirmed transaction (`/txs/chain`, first page)
-   - BTC/USD spot price (`/v1/prices`)
-4. **Compute derived values** — confirmed BTC balance, USD estimate, script type, exposed pubkey status, last transaction date, and formatted timestamps.
+   - BTC spot prices (`/v1/prices`)
+4. **Compute derived values** — confirmed BTC balance, fiat estimate, script type, exposed pubkey status, last transaction date, and formatted timestamps.
 5. **Render the result panel** and start live timers.
 
 ### Balance calculation
@@ -80,13 +95,50 @@ confirmed sats = chain_stats.funded_txo_sum − chain_stats.spent_txo_sum
 confirmed BTC = confirmed sats / 100,000,000
 ```
 
-Unconfirmed mempool balance is tracked separately and shown in the subtitle when present:
+Unconfirmed mempool balance is tracked separately and shown in the subtitle when mempool activity exists:
 
 ```
 unconfirmed sats = mempool_stats.funded_txo_sum − mempool_stats.spent_txo_sum
 ```
 
-The USD line is based on the **confirmed** balance using the live price from `GET /api/v1/prices`. If the price request fails, the last successful price is reused.
+This is the **net** of all pending transactions combined — not just the last one. Examples:
+
+| Pending activity | Net unconfirmed shown |
+|---|---|
+| +0.1 BTC receive only | `0.10000000 BTC` |
+| −0.1 BTC spend only | `-0.10000000 BTC` |
+| +0.2 BTC in, −0.1 BTC out | `0.10000000 BTC` |
+| +0.1 BTC in, −0.1 BTC out | `0.00000000 BTC` (line still shown when both directions are active) |
+
+The fiat line is based on the **confirmed** balance using the live price from `GET /api/v1/prices`:
+
+- **English** → USD
+- **Portuguese** → BRL
+
+If the price request fails, the last successful cached price is reused.
+
+### Unconfirmed direction arrows
+
+When the unconfirmed balance line is visible, small triangles appear **before** the amount:
+
+| Arrow | Meaning |
+|---|---|
+| **▲** green | Pending incoming funds (`mempool_stats.funded_txo_sum > 0`) |
+| **▼** red | Pending outgoing funds (`mempool_stats.spent_txo_sum > 0`) |
+| **Both** | Incoming and outgoing mempool activity at the same time |
+
+Negative net balances are prefixed with a minus sign (e.g. `▼ -0.10000000 BTC unconfirmed`).
+
+### Transaction sounds
+
+After the first successful lookup, auto-refresh can trigger audio alerts (requires a prior user click to unlock browser audio):
+
+| Event | Sound |
+|---|---|
+| New unconfirmed transaction | Bell |
+| New confirmed transaction | Mechanical "done" click |
+
+Use the bell button in the navigation bar to mute or unmute sounds. The preference is saved in `localStorage`.
 
 ### Exposed public key
 
@@ -100,19 +152,24 @@ The **Exposed PubKey** field indicates whether the public key for this lookup is
 
 ### Live updates
 
-Two independent timers keep the UI fresh after a successful lookup:
+Timers keep the UI fresh after a successful lookup:
 
 | Timer | Interval | Purpose |
 |---|---|---|
 | Auto-refresh | 10 s | Silently re-fetches all on-chain data from mempool.space |
+| Block height | 10 s | Updates the cached chain tip shown on logo hover |
 | Time since last transaction | 1 s | Updates the human-readable elapsed time counter |
-| USD / unconfirmed cycle | 10 s | When unconfirmed funds exist, alternates the subtitle between USD value and unconfirmed BTC (with a fade transition) |
+| Fiat / unconfirmed cycle | 10 s | When mempool activity exists, alternates the subtitle between fiat value and unconfirmed BTC (with a fade transition) |
 
 Auto-refresh uses a generation counter so stale responses from earlier lookups are ignored if the user submits a new input before the request finishes.
 
 ### QR code
 
 The QR button encodes the original lookup value (address or public key hex) into a canvas using the `qrcode` library loaded from jsDelivr.
+
+### Internationalization
+
+`i18n.js` provides English and Brazilian Portuguese translations for all UI text. Switching language updates labels, error messages, date/time formatting, and the display currency (USD ↔ BRL) immediately. If results are already on screen, the panel refreshes in the new language without a new lookup.
 
 ## Public keys vs addresses
 
@@ -183,7 +240,7 @@ This app follows mempool.space and queries the **P2PK scripthash** when you past
 | Field | Description |
 |---|---|
 | **BTC Balance** | Confirmed balance in BTC |
-| **USD / Unconfirmed** | USD value of the confirmed balance. If unconfirmed BTC exists, alternates every 10 seconds between USD value and the unconfirmed amount |
+| **Fiat / Unconfirmed** | Fiat value of the confirmed balance (USD or BRL). When mempool activity exists, alternates every 10 seconds between the fiat value and the net unconfirmed amount (with direction arrows) |
 
 ### Details
 
@@ -193,26 +250,30 @@ This app follows mempool.space and queries the **P2PK scripthash** when you past
 | **Address Type** | `P2PK`, `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, or `P2TR` |
 | **Exposed PubKey** | `Yes` if the public key is visible on-chain, `No` otherwise |
 | **Transactions** | Total number of confirmed transactions |
-| **Last Transaction Date** | When the most recent confirmed transaction was mined (`DD/MM/YYYY HH:MM:SS AM/PM`) |
+| **Last Transaction Date** | When the most recent confirmed transaction was mined |
 | **Time Since Last Transaction** | Live counter, updated every second |
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page structure, input form, result panel, QR overlay |
+| `index.html` | Page structure, navigation bar, input form, result panel, QR overlay |
 | `styles.css` | Dark-themed styling |
-| `app.js` | API calls, balance logic, live timers, UI updates |
+| `app.js` | API calls, balance logic, live timers, sounds triggers, UI updates |
 | `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
+| `i18n.js` | English / Brazilian Portuguese translations and language picker |
+| `sounds.js` | Web Audio transaction alert sounds and mute toggle |
+| `favicon.svg` | Bitcoin logo favicon |
 
 ## External dependencies
 
 | Dependency | Loaded from | Used for |
 |---|---|---|
 | [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr CDN | QR code generation |
-| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` | On-chain data and BTC/USD price |
+| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` | On-chain data, block height, and BTC prices |
 | Web Crypto API | Browser built-in | SHA-256 for scripthash calculation |
+| Web Audio API | Browser built-in | Transaction alert sounds |
 
 ## Author
 
-Built by [@razivex](https://github.com/razivex)
+Created by [@razivex](https://github.com/razivex)

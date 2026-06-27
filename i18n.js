@@ -3,8 +3,8 @@ const DEFAULT_LANG = "en";
 
 const translations = {
   en: {
-    pageTitle: "Bitcoin Address Balance",
-    pageHeading: "Bitcoin Address Balance",
+    pageTitle: "Bitcoin Address Explorer",
+    pageHeading: "Bitcoin Address Explorer",
     pageSub:
       "Real time check any bitcoin address or pubkey, including balance, transactions, and other important datas",
     addressLabel: "Bitcoin address or public key",
@@ -60,8 +60,8 @@ const translations = {
     pm: "PM",
   },
   "pt-BR": {
-    pageTitle: "Saldo do Endereço Bitcoin",
-    pageHeading: "Saldo do Endereço Bitcoin",
+    pageTitle: "Explorador de Endereços Bitcoin",
+    pageHeading: "Explorador de Endereços Bitcoin",
     pageSub:
       "Verificação em tempo real de qualquer endereço bitcoin ou chave pública, incluindo saldo, transações e outros dados importantes",
     addressLabel: "Endereço bitcoin ou chave pública",
@@ -138,6 +138,10 @@ function getLocale() {
 
 function getCurrentLang() {
   return currentLang;
+}
+
+function getDisplayCurrency() {
+  return currentLang === "pt-BR" ? "BRL" : "USD";
 }
 
 function loadLanguagePreference() {

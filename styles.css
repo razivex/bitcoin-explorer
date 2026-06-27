@@ -80,7 +80,7 @@ body {
 }
 
 .lang-select {
-  width: 52px;
+  width: 40px;
   height: 32px;
   padding: 0;
   border-radius: 8px;
@@ -118,7 +118,10 @@ body {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 148px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: auto;
   margin: 0;
   padding: 6px;
   list-style: none;
@@ -136,16 +139,14 @@ body {
 .lang-menu__option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 10px;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  padding: 0;
   border: none;
   border-radius: 8px;
   background: transparent;
   color: #b8c4d4;
-  font-size: 0.88rem;
-  font-weight: 600;
-  text-align: left;
   cursor: pointer;
 }
 
@@ -395,11 +396,37 @@ button:disabled {
 }
 
 .balance-unconfirmed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   font-size: 0.85rem;
   color: #9aa7b8;
   min-height: 1.2em;
   opacity: 1;
   transition: opacity 0.6s ease;
+}
+
+.balance-unconfirmed__arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 6px;
+}
+
+.balance-arrow {
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  -webkit-text-stroke: 0.25px currentColor;
+}
+
+.balance-arrow--up {
+  color: #3ddc84;
+}
+
+.balance-arrow--down {
+  color: #ff6b7a;
 }
 
 .balance-unconfirmed.is-fading {
