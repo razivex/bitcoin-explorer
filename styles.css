@@ -7,14 +7,221 @@ body {
   background: #0f1419;
   color: #e7e9ea;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0 24px;
+}
+
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  align-self: stretch;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #1a2332;
+  border-bottom: 1px solid #2d3a4d;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.top-nav__brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: default;
+}
+
+.top-nav__logo {
+  width: 22px;
+  height: 22px;
+  fill: #f7931a;
+}
+
+.top-nav__tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #2d3a4d;
+  background: #111820;
+  color: #e7e9ea;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 70;
+}
+
+.top-nav__tooltip[hidden] {
+  display: none;
+}
+
+.top-nav__brand:hover .top-nav__tooltip:not([hidden]) {
+  opacity: 1;
+  visibility: visible;
+}
+
+.top-nav__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lang-picker {
+  position: relative;
+}
+
+.lang-select {
+  width: 52px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #2d3a4d;
+  background-color: rgba(15, 20, 25, 0.45);
+  background-repeat: no-repeat;
+  background-position: left 8px center, right 7px center;
+  background-size: 22px 15px, 10px 10px;
+  cursor: pointer;
+  outline: none;
+}
+
+.lang-select--en {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 13'%3E%3Crect fill='%23B22234' width='19' height='13'/%3E%3Cpath d='M0 1h19M0 3h19M0 5h19M0 7h19M0 9h19M0 11h19' stroke='%23fff' stroke-width='1'/%3E%3Crect fill='%233C3B6E' width='8' height='7'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239aa7b8'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
+}
+
+.lang-select--pt-BR {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 14'%3E%3Crect fill='%23009b3a' width='20' height='14'/%3E%3Cpolygon fill='%23fedf00' points='10,1.5 18.5,7 10,12.5 1.5,7'/%3E%3Ccircle fill='%23002776' cx='10' cy='7' r='3.2'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239aa7b8'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
+}
+
+.lang-select:hover {
+  border-color: #3a4d66;
+}
+
+.lang-select:focus {
+  border-color: #f7931a;
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.2);
+}
+
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 148px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 10px;
+  border: 1px solid #2d3a4d;
+  background: #1a2332;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  z-index: 60;
+}
+
+.lang-menu[hidden] {
+  display: none;
+}
+
+.lang-menu__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #b8c4d4;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lang-menu__option:hover,
+.lang-menu__option.is-selected {
+  background: rgba(15, 20, 25, 0.7);
+  color: #f7931a;
+}
+
+.lang-menu__flag {
+  width: 22px;
+  height: 15px;
+  flex-shrink: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.lang-menu__option--en .lang-menu__flag {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 13'%3E%3Crect fill='%23B22234' width='19' height='13'/%3E%3Cpath d='M0 1h19M0 3h19M0 5h19M0 7h19M0 9h19M0 11h19' stroke='%23fff' stroke-width='1'/%3E%3Crect fill='%233C3B6E' width='8' height='7'/%3E%3C/svg%3E");
+}
+
+.lang-menu__option--pt-BR .lang-menu__flag {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 14'%3E%3Crect fill='%23009b3a' width='20' height='14'/%3E%3Cpolygon fill='%23fedf00' points='10,1.5 18.5,7 10,12.5 1.5,7'/%3E%3Ccircle fill='%23002776' cx='10' cy='7' r='3.2'/%3E%3C/svg%3E");
+}
+
+.sound-toggle {
+  position: relative;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #2d3a4d;
+  background: rgba(15, 20, 25, 0.45);
+  color: #f7931a;
+  cursor: pointer;
+}
+
+.sound-toggle:hover {
+  color: #ffaa33;
+  border-color: #f7931a;
+  background: rgba(15, 20, 25, 0.7);
+}
+
+.sound-toggle.is-muted {
+  color: #7f8fa3;
+}
+
+.sound-toggle.is-muted:hover {
+  color: #b8c4d4;
+  border-color: #3a4d66;
+}
+
+.sound-toggle__icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.sound-toggle.is-muted::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(-45deg);
 }
 
 .card {
   width: 100%;
   max-width: 520px;
+  margin: auto 24px;
   background: #1a2332;
   border: 1px solid #2d3a4d;
   border-radius: 16px;
@@ -74,6 +281,33 @@ button {
 }
 
 button:hover { background: #ffaa33; }
+
+.lang-picker .lang-select,
+.lang-menu__option {
+  padding: 0;
+  border: 1px solid #2d3a4d;
+  background-color: rgba(15, 20, 25, 0.45);
+  color: #b8c4d4;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.lang-picker .lang-select:hover,
+.lang-menu__option:hover {
+  background-color: rgba(15, 20, 25, 0.7);
+}
+
+.lang-menu__option {
+  padding: 8px 10px;
+  border: none;
+  background-color: transparent;
+}
+
+.lang-menu__option:hover,
+.lang-menu__option.is-selected {
+  background-color: rgba(15, 20, 25, 0.7);
+  color: #f7931a;
+}
 
 button:disabled {
   opacity: 0.6;
@@ -238,4 +472,14 @@ button:disabled {
   width: 16px;
   height: 16px;
   fill: currentColor;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding-bottom: 16px;
+  }
+
+  .card {
+    margin: auto 16px;
+  }
 }

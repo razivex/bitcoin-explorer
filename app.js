@@ -19,6 +19,7 @@ const metaExposedPubKeyEl = document.getElementById("metaExposedPubKey");
 const metaTransactionsEl = document.getElementById("metaTransactions");
 const metaLastTxDateEl = document.getElementById("metaLastTxDate");
 const timeSinceLastEl = document.getElementById("timeSinceLast");
+const blockHeightTooltipEl = document.getElementById("blockHeightTooltip");
 
 let timeSinceLastInterval = null;
 let balanceSubInterval = null;
@@ -34,6 +35,15 @@ let balanceSubState = {
   usdText: "",
   unconfirmedText: "",
 };
+let txWatchState = {
+  initialized: false,
+  chainTxCount: 0,
+  mempoolTxCount: 0,
+  lastConfirmedTxId: null,
+};
+let lastAppliedData = null;
+let cachedBlockHeight = null;
+let blockHeightInterval = null;
 
 function showError(message) {
   errorEl.textContent = message;
@@ -67,8 +77,52 @@ function stopAutoRefresh() {
   }
 }
 
+function resetTxWatchState() {
+  txWatchState = {
+    initialized: false,
+    chainTxCount: 0,
+    mempoolTxCount: 0,
+    lastConfirmedTxId: null,
+  };
+}
+
+function detectAndPlayTxSounds(data, { silent = false } = {}) {
+  const chainTxCount = data.txCount;
+  const mempoolTxCount = data.mempoolTxCount;
+  const lastConfirmedTxId = data.lastConfirmedTxId;
+
+  if (!silent || !txWatchState.initialized) {
+    txWatchState = {
+      initialized: true,
+      chainTxCount,
+      mempoolTxCount,
+      lastConfirmedTxId,
+    };
+    return;
+  }
+
+  const newConfirmed =
+    chainTxCount > txWatchState.chainTxCount ||
+    (lastConfirmedTxId &&
+      lastConfirmedTxId !== txWatchState.lastConfirmedTxId);
+  const newUnconfirmed = mempoolTxCount > txWatchState.mempoolTxCount;
+
+  if (newConfirmed) {
+    playConfirmedSound();
+  } else if (newUnconfirmed) {
+    playBellSound();
+  }
+
+  txWatchState = {
+    initialized: true,
+    chainTxCount,
+    mempoolTxCount,
+    lastConfirmedTxId,
+  };
+}
+
 function formatUsd(value) {
-  return value.toLocaleString(undefined, {
+  return value.toLocaleString(getLocale(), {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
@@ -121,7 +175,9 @@ function setupBalanceSub(confirmedBtc, unconfirmedSats, unconfirmedBtc, usdPrice
   balanceSubState.usdText = usdText;
 
   if (unconfirmedSats > 0) {
-    const unconfirmedText = `${formatBtc(unconfirmedBtc)} BTC unconfirmed`;
+    const unconfirmedText = t("btcUnconfirmed", {
+      amount: formatBtc(unconfirmedBtc),
+    });
     startBalanceSubCycle(usdText, unconfirmedText);
     return;
   }
@@ -145,7 +201,7 @@ function updateBalanceSubSilently(
   const usdText = `≈ ${formatUsd(confirmedBtc * usdPrice)} USD`;
   const hasUnconfirmed = unconfirmedSats > 0;
   const unconfirmedText = hasUnconfirmed
-    ? `${formatBtc(unconfirmedBtc)} BTC unconfirmed`
+    ? t("btcUnconfirmed", { amount: formatBtc(unconfirmedBtc) })
     : "";
 
   if (hasUnconfirmed !== balanceSubState.hasUnconfirmed) {
@@ -185,7 +241,7 @@ async function showQrCode() {
   if (!currentLookupInput || !qrOverlay.hidden) return;
 
   if (typeof QRCode === "undefined") {
-    showError("QR code library failed to load. Refresh the page and try again.");
+    showError(t("errorQrLibrary"));
     return;
   }
 
@@ -202,7 +258,7 @@ async function showQrCode() {
     qrOverlay.hidden = false;
   } catch (err) {
     console.error(err);
-    showError("Could not generate QR code. Please try again.");
+    showError(t("errorQrGenerate"));
   }
 }
 
@@ -211,7 +267,7 @@ function satsToBtc(sats) {
 }
 
 function formatBtc(btc) {
-  return btc.toLocaleString(undefined, {
+  return btc.toLocaleString(getLocale(), {
     minimumFractionDigits: 8,
     maximumFractionDigits: 8,
   });
@@ -276,12 +332,12 @@ function isPublicKeyExposed(lookupMode, addressData) {
 }
 
 function formatExposedPubKey(exposed) {
-  return exposed ? "Yes" : "No";
+  return exposed ? t("yes") : t("no");
 }
 
 function getAddressType(address, { isPublicKey = false } = {}) {
   const normalized = address.trim();
-  if (!normalized) return "Unknown";
+  if (!normalized) return t("unknown");
 
   if (isPublicKey || isHexPublicKey(normalized)) {
     return "P2PK";
@@ -296,7 +352,7 @@ function getAddressType(address, { isPublicKey = false } = {}) {
   }
   if (normalized.startsWith("1")) return "P2PKH";
   if (normalized.startsWith("3")) return "P2SH";
-  return "Unknown";
+  return t("unknown");
 }
 
 function pad2(value) {
@@ -307,12 +363,18 @@ function formatDateTime(date) {
   const day = pad2(date.getDate());
   const month = pad2(date.getMonth() + 1);
   const year = date.getFullYear();
+  const minutes = pad2(date.getMinutes());
+  const seconds = pad2(date.getSeconds());
+
+  if (getCurrentLang() === "pt-BR") {
+    return `${day}/${month}/${year} ${pad2(date.getHours())}:${minutes}:${seconds}`;
+  }
 
   let hours = date.getHours();
-  const ampm = hours >= 12 ? "PM" : "AM";
+  const ampm = hours >= 12 ? t("pm") : t("am");
   hours = hours % 12 || 12;
 
-  return `${day}/${month}/${year} ${pad2(hours)}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())} ${ampm}`;
+  return `${day}/${month}/${year} ${pad2(hours)}:${minutes}:${seconds} ${ampm}`;
 }
 
 function getTimeSinceParts(fromDate, toDate = new Date()) {
@@ -350,19 +412,19 @@ function getTimeSinceParts(fromDate, toDate = new Date()) {
 
 function formatTimeSince(parts) {
   const units = [
-    ["year", parts.years],
-    ["month", parts.months],
-    ["day", parts.days],
-    ["hour", parts.hours],
-    ["minute", parts.minutes],
-    ["second", parts.seconds],
+    ["unitYear", "unitYears", parts.years],
+    ["unitMonth", "unitMonths", parts.months],
+    ["unitDay", "unitDays", parts.days],
+    ["unitHour", "unitHours", parts.hours],
+    ["unitMinute", "unitMinutes", parts.minutes],
+    ["unitSecond", "unitSeconds", parts.seconds],
   ];
 
-  const tierStart = units.findIndex(([, value]) => value > 0);
-  if (tierStart === -1) return "0 seconds";
+  const tierStart = units.findIndex(([, , value]) => value > 0);
+  if (tierStart === -1) return t("zeroSeconds");
 
-  const formatUnit = ([label, value]) =>
-    `${value} ${label}${value === 1 ? "" : "s"}`;
+  const formatUnit = ([singular, plural, value]) =>
+    `${value} ${value === 1 ? t(singular) : t(plural)}`;
 
   if (tierStart >= units.length - 1) {
     return formatUnit(units[tierStart]);
@@ -433,6 +495,7 @@ async function loadAddressData(address) {
   }
 
   const txCount = addressData.chain_stats.tx_count ?? 0;
+  const mempoolTxCount = addressData.mempool_stats?.tx_count ?? 0;
 
   const [chainTxs, usdPrice] = await Promise.all([
     fetchJson(`${API_BASE}/${apiBasePath}/${encodedQueryKey}/txs/chain`).catch(
@@ -447,7 +510,7 @@ async function loadAddressData(address) {
   const unconfirmedBtc = satsToBtc(unconfirmedSats);
   const lastConfirmedTx = Array.isArray(chainTxs) ? chainTxs[0] : null;
 
-  let lastTxDate = "N/A";
+  let lastTxDate = t("na");
   let lastTxDateObj = null;
 
   if (lastConfirmedTx) {
@@ -469,6 +532,8 @@ async function loadAddressData(address) {
     }),
     exposedPubKey: isPublicKeyExposed(lookupTarget.mode, addressData),
     txCount,
+    mempoolTxCount,
+    lastConfirmedTxId: lastConfirmedTx?.txid ?? null,
     lastTxDate,
     lastTxDateObj,
   };
@@ -494,12 +559,16 @@ function applyAddressData(data, { silent = false } = {}) {
   }
 
   metaAddressLabelEl.textContent =
-    data.lookupMode === "pubkey" ? "Public Key:" : "Address:";
+    data.lookupMode === "pubkey" ? t("publicKey") : t("address");
   metaAddressEl.textContent = data.addressData.address;
-  metaAddressTypeEl.textContent = data.addressType;
+  metaAddressTypeEl.textContent = getAddressType(data.addressData.address, {
+    isPublicKey: data.lookupMode === "pubkey",
+  });
   metaExposedPubKeyEl.textContent = formatExposedPubKey(data.exposedPubKey);
   metaTransactionsEl.textContent = data.txCount;
-  metaLastTxDateEl.textContent = data.lastTxDate;
+  metaLastTxDateEl.textContent = data.lastTxDateObj
+    ? formatDateTime(data.lastTxDateObj)
+    : t("na");
 
   const nextLastTimestamp = data.lastTxDateObj?.getTime() ?? null;
   if (data.lastTxDateObj) {
@@ -510,9 +579,12 @@ function applyAddressData(data, { silent = false } = {}) {
   } else {
     lastTxTimestamp = null;
     stopTimeSinceTimer();
-    timeSinceLastEl.textContent = "N/A";
+    timeSinceLastEl.textContent = t("na");
   }
 
+  detectAndPlayTxSounds(data, { silent });
+
+  lastAppliedData = data;
   currentLookupInput = data.addressData.address;
   resultEl.classList.add("show");
 }
@@ -557,15 +629,17 @@ async function lookupAddress() {
   hideQrPanel();
   currentLookupInput = null;
   lastTxTimestamp = null;
+  lastAppliedData = null;
+  resetTxWatchState();
 
   const address = addressInput.value.trim();
   if (!address) {
-    showError("Please enter a Bitcoin address or public key.");
+    showError(t("errorEmpty"));
     return;
   }
 
   lookupBtn.disabled = true;
-  lookupBtn.textContent = "Loading...";
+  lookupBtn.textContent = t("loading");
 
   try {
     const data = await loadAddressData(address);
@@ -577,18 +651,64 @@ async function lookupAddress() {
     if (generation === lookupGeneration) {
       const message =
         err?.message === "Invalid public key hex"
-          ? "Invalid public key. Paste a compressed (02/03...) or uncompressed (04...) key in hex."
-          : "Could not fetch balance. Check the address or public key and try again.";
+          ? t("errorInvalidPubkey")
+          : t("errorFetch");
       showError(message);
     }
     console.error(err);
   } finally {
     if (generation === lookupGeneration) {
       lookupBtn.disabled = false;
-      lookupBtn.textContent = "Check";
+      lookupBtn.textContent = t("check");
     }
   }
 }
+
+function formatBlockHeight(height) {
+  const value = Number(height);
+  if (!Number.isFinite(value)) return height;
+  return value.toLocaleString(getLocale());
+}
+
+function updateBlockHeightTooltip() {
+  if (!blockHeightTooltipEl || cachedBlockHeight === null) return;
+
+  blockHeightTooltipEl.textContent = t("blockHeight", {
+    height: formatBlockHeight(cachedBlockHeight),
+  });
+  blockHeightTooltipEl.hidden = false;
+}
+
+async function fetchBlockHeight() {
+  try {
+    const response = await fetch(`${API_BASE}/blocks/tip/height`);
+    if (!response.ok) {
+      throw new Error(`API error (${response.status})`);
+    }
+
+    const height = (await response.text()).trim();
+    if (!/^\d+$/.test(height)) {
+      throw new Error("Invalid block height response");
+    }
+
+    cachedBlockHeight = height;
+    updateBlockHeightTooltip();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function startBlockHeightRefresh() {
+  fetchBlockHeight();
+
+  if (blockHeightInterval !== null) {
+    clearInterval(blockHeightInterval);
+  }
+
+  blockHeightInterval = setInterval(fetchBlockHeight, UPDATE_INTERVAL_MS);
+}
+
+startBlockHeightRefresh();
 
 lookupBtn.addEventListener("click", lookupAddress);
 qrBtn.addEventListener("click", showQrCode);
@@ -599,4 +719,16 @@ qrOverlay.addEventListener("click", (event) => {
 });
 addressInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") lookupAddress();
+});
+
+onLanguageChange(() => {
+  if (lookupBtn.disabled) {
+    lookupBtn.textContent = t("loading");
+  }
+
+  updateBlockHeightTooltip();
+
+  if (lastAppliedData && resultEl.classList.contains("show")) {
+    applyAddressData(lastAppliedData, { silent: true });
+  }
 });

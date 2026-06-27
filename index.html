@@ -7,26 +7,74 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main class="card">
-    <h1>Bitcoin Address Balance</h1>
-    <p class="sub">Real time check any bitcoin address or pubkey, including balance, transactions, and other important datas</p>
+  <header class="top-nav">
+    <div class="top-nav__brand">
+      <svg class="top-nav__logo" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M17.06 11.57c.24-1.6-.98-2.46-2.65-3.03l.54-2.17-1.32-.33-.53 2.11c-.35-.09-.7-.17-1.06-.25l.53-2.14-1.32-.33-.54 2.17c-.29-.07-.57-.13-.84-.2l.001-.006-1.82-.45-.35 1.41s.98.22.96.24c.54.13.63.49.62.77l-.62 2.48c.04.01.08.02.13.04l-.13-.03-.87 3.49c-.07.16-.23.41-.61.32.01.02-.96-.24-.96-.24l-.65 1.51 1.72.43c.32.08.63.17.94.25l-.55 2.2 1.32.33.54-2.17c.36.1.71.18 1.05.26l-.54 2.16 1.32.33.55-2.2c2.26.43 3.96.26 4.68-1.79.58-1.65-.03-2.6-1.22-3.22.87-.2 1.52-.77 1.7-1.95zm-3.04 4.25c-.41 1.65-3.18.76-4.08.53l.73-2.92c.9.23 3.79.67 3.35 2.39zm.41-4.28c-.37 1.5-2.68.74-3.43.55l.66-2.65c.75.19 3.16.54 2.77 2.1z"/>
+      </svg>
+      <span id="blockHeightTooltip" class="top-nav__tooltip" role="tooltip" hidden></span>
+    </div>
+    <div class="top-nav__controls">
+      <button
+        id="soundToggleBtn"
+        class="sound-toggle"
+        type="button"
+        aria-label="Mute sounds"
+        aria-pressed="true"
+        title="Sounds on"
+      >
+        <svg class="sound-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+        </svg>
+      </button>
+      <div class="lang-picker">
+        <button
+          id="langToggleBtn"
+          class="lang-select lang-select--en"
+          type="button"
+          aria-label="Language"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+        ></button>
+        <ul id="langMenu" class="lang-menu" role="listbox" hidden>
+          <li role="presentation">
+            <button class="lang-menu__option lang-menu__option--en" type="button" data-lang="en" role="option">
+              <span class="lang-menu__flag" aria-hidden="true"></span>
+              <span class="lang-menu__label">English</span>
+            </button>
+          </li>
+          <li role="presentation">
+            <button class="lang-menu__option lang-menu__option--pt-BR" type="button" data-lang="pt-BR" role="option">
+              <span class="lang-menu__flag" aria-hidden="true"></span>
+              <span class="lang-menu__label">Português</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
 
-    <label for="address">Bitcoin address or public key</label>
+  <main class="card">
+    <h1 data-i18n="pageHeading">Bitcoin Address Balance</h1>
+    <p class="sub" data-i18n="pageSub">Real time check any bitcoin address or pubkey, including balance, transactions, and other important datas</p>
+
+    <label for="address" data-i18n="addressLabel">Bitcoin address or public key</label>
     <div class="row">
       <input
         id="address"
         type="text"
+        data-i18n-placeholder="addressPlaceholder"
         placeholder="e.g. bc1q..., 1A1zP1..., or public key hex"
         spellcheck="false"
         autocomplete="off"
       />
-      <button id="lookupBtn" type="button">Check</button>
+      <button id="lookupBtn" type="button" data-i18n="check">Check</button>
     </div>
 
     <div id="error" class="error"></div>
 
     <section id="result" class="result" aria-live="polite">
-      <button id="qrBtn" class="qr-btn" type="button" aria-label="Show address QR code" title="QR code">
+      <button id="qrBtn" class="qr-btn" type="button" data-i18n="qrShow" data-i18n-attr="aria-label" aria-label="Show address QR code" data-i18n-title="qrTitle" title="QR code">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm0 4h3v2h-3v-2zm-4-4h2v2h-2v-2zm2 4h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 4h2v2h-2v-2zm0-8h2v2h-2v-2z"/>
         </svg>
@@ -34,21 +82,22 @@
       <div class="balance-btc" id="balanceBtc">0.00000000 BTC</div>
       <div class="balance-unconfirmed" id="balanceUnconfirmed"></div>
       <div class="meta" id="meta">
-        <strong id="metaAddressLabel">Address:</strong> <span id="metaAddress"></span><br>
-        <strong>Address Type:</strong> <span id="metaAddressType"></span><br>
-        <strong>Exposed PubKey:</strong> <span id="metaExposedPubKey"></span><br>
-        <strong>Transactions:</strong> <span id="metaTransactions"></span><br>
-        <strong>Last Transaction Date:</strong> <span id="metaLastTxDate">N/A</span><br>
-        <strong>Time Since Last Transaction:</strong> <span id="timeSinceLast">N/A</span>
+        <strong id="metaAddressLabel" data-i18n="address">Address:</strong> <span id="metaAddress"></span><br>
+        <strong data-i18n="addressType">Address Type:</strong> <span id="metaAddressType"></span><br>
+        <strong data-i18n="exposedPubKey">Exposed PubKey:</strong> <span id="metaExposedPubKey"></span><br>
+        <strong data-i18n="transactions">Transactions:</strong> <span id="metaTransactions"></span><br>
+        <strong data-i18n="lastTxDate">Last Transaction Date:</strong> <span id="metaLastTxDate">N/A</span><br>
+        <strong data-i18n="timeSinceLast">Time Since Last Transaction:</strong> <span id="timeSinceLast">N/A</span>
       </div>
     </section>
 
     <p class="footer">
-      Data from <a href="https://mempool.space" target="_blank" rel="noopener">mempool.space</a>
+      <span data-i18n="footerCreatedBy">Created by</span>
+      <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer">@razivex</a>
     </p>
   </main>
 
-  <nav class="social-links" aria-label="Social links">
+  <nav class="social-links" data-i18n="socialLinks" data-i18n-attr="aria-label" aria-label="Social links">
     <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer" aria-label="GitHub — razivex">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.468-2.38 1.236-3.22-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.625-5.48 5.92.43.37.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .32.218.694.825.576C20.565 21.796 24 17.297 24 12c0-6.63-5.37-12-12-12z"/>
@@ -63,12 +112,14 @@
 
   <div id="qrOverlay" class="qr-overlay" hidden>
     <div class="qr-modal">
-      <canvas id="qrCanvas" aria-label="Address QR code"></canvas>
+      <canvas id="qrCanvas" data-i18n="qrCanvasLabel" data-i18n-attr="aria-label" aria-label="Address QR code"></canvas>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <script src="pubkey-utils.js"></script>
+  <script src="i18n.js"></script>
+  <script src="sounds.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
