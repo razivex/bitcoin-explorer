@@ -1,6 +1,6 @@
 # Bitcoin Address Explorer
 
-A lightweight web app to look up any Bitcoin address directly from the timechain, powered by the [mempool.space](https://mempool.space) API.
+A lightweight web app to look up any Bitcoin address directly from the timechain.
 
 No backend, no accounts, and no installation required — just open `index.html` in your browser.
 
@@ -61,10 +61,6 @@ Then visit `http://localhost:8080`.
 | `index.html` | Page structure and layout |
 | `styles.css` | Dark-themed styling |
 | `app.js` | API calls, data processing, and live updates |
-
-## Data source
-
-All on-chain data and BTC/USD prices are fetched from [mempool.space](https://mempool.space).
 
 ## Author
 
