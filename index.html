@@ -11,12 +11,12 @@
     <h1>Bitcoin Address Balance</h1>
     <p class="sub">Look up the current balance of any Bitcoin address using mempool.space.</p>
 
-    <label for="address">Bitcoin address</label>
+    <label for="address">Bitcoin address or public key</label>
     <div class="row">
       <input
         id="address"
         type="text"
-        placeholder="e.g. bc1q... or 1A1zP1..."
+        placeholder="e.g. bc1q..., 1A1zP1..., or public key hex"
         spellcheck="false"
         autocomplete="off"
       />
@@ -34,7 +34,7 @@
       <div class="balance-btc" id="balanceBtc">0.00000000 BTC</div>
       <div class="balance-unconfirmed" id="balanceUnconfirmed"></div>
       <div class="meta" id="meta">
-        <strong>Address:</strong> <span id="metaAddress"></span><br>
+        <strong id="metaAddressLabel">Address:</strong> <span id="metaAddress"></span><br>
         <strong>Address Type:</strong> <span id="metaAddressType"></span><br>
         <strong>Transactions:</strong> <span id="metaTransactions"></span><br>
         <strong>Confirmations:</strong> <span id="metaConfirmations"></span><br>
@@ -68,6 +68,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="pubkey-utils.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

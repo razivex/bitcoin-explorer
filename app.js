@@ -13,6 +13,7 @@ const qrBtn = document.getElementById("qrBtn");
 const qrOverlay = document.getElementById("qrOverlay");
 const qrCanvas = document.getElementById("qrCanvas");
 const cardEl = document.querySelector(".card");
+const metaAddressLabelEl = document.getElementById("metaAddressLabel");
 const metaAddressEl = document.getElementById("metaAddress");
 const metaAddressTypeEl = document.getElementById("metaAddressType");
 const metaTransactionsEl = document.getElementById("metaTransactions");
@@ -25,7 +26,7 @@ let balanceSubInterval = null;
 let autoRefreshInterval = null;
 let refreshInFlight = false;
 let lookupGeneration = 0;
-let currentAddress = null;
+let currentLookupInput = null;
 let lastConfirmedTimestamp = null;
 let cachedUsdPrice = 0;
 let balanceSubState = {
@@ -182,7 +183,7 @@ function hideQrPanel() {
 }
 
 async function showQrCode() {
-  if (!currentAddress || !qrOverlay.hidden) return;
+  if (!currentLookupInput || !qrOverlay.hidden) return;
 
   if (typeof QRCode === "undefined") {
     showError("QR code library failed to load. Refresh the page and try again.");
@@ -191,7 +192,7 @@ async function showQrCode() {
 
   try {
     const qrSize = getQrSize();
-    await QRCode.toCanvas(qrCanvas, currentAddress, {
+    await QRCode.toCanvas(qrCanvas, currentLookupInput, {
       width: qrSize,
       margin: 2,
       color: {
@@ -227,8 +228,7 @@ function calcBalance(stats) {
 
 function isValidAddressData(addressData) {
   return Boolean(
-    addressData?.address &&
-      addressData.chain_stats &&
+    addressData?.chain_stats &&
       Number.isFinite(Number(addressData.chain_stats.funded_txo_sum)) &&
       Number.isFinite(Number(addressData.chain_stats.spent_txo_sum)),
   );
@@ -257,9 +257,13 @@ async function fetchUsdPrice() {
   return cachedUsdPrice;
 }
 
-function getAddressType(address) {
+function getAddressType(address, { isPublicKey = false } = {}) {
   const normalized = address.trim();
   if (!normalized) return "Unknown";
+
+  if (isPublicKey || isHexPublicKey(normalized)) {
+    return "P2PK";
+  }
 
   const lower = normalized.toLowerCase();
   if (lower.startsWith("bc1p")) return "P2TR";
@@ -391,18 +395,38 @@ async function fetchText(url) {
 }
 
 async function loadAddressData(address) {
-  const normalizedAddress = address.trim();
-  const encodedAddress = encodeURIComponent(normalizedAddress);
-  const addressData = await fetchJson(
-    `${API_BASE}/address/${encodedAddress}`,
+  let lookupTarget;
+  try {
+    lookupTarget = await resolveLookupTarget(address);
+  } catch (err) {
+    if (isHexPublicKey(address)) {
+      throw new Error("Invalid public key hex");
+    }
+    throw err;
+  }
+
+  const encodedQueryKey = encodeURIComponent(lookupTarget.queryKey);
+  const isPublicKeyLookup = lookupTarget.mode === "pubkey";
+  const apiBasePath = isPublicKeyLookup ? "scripthash" : "address";
+
+  const rawData = await fetchJson(
+    `${API_BASE}/${apiBasePath}/${encodedQueryKey}`,
   );
+
+  const addressData = isPublicKeyLookup
+    ? {
+        ...rawData,
+        address: lookupTarget.displayValue,
+        is_pubkey: true,
+      }
+    : rawData;
 
   if (!isValidAddressData(addressData)) {
     throw new Error("Invalid address response");
   }
 
   const [chainTxs, tipHeightText, usdPrice] = await Promise.all([
-    fetchJson(`${API_BASE}/address/${encodedAddress}/txs/chain`).catch(
+    fetchJson(`${API_BASE}/${apiBasePath}/${encodedQueryKey}/txs/chain`).catch(
       () => [],
     ),
     fetchText(`${API_BASE}/blocks/tip/height`).catch(() => "0"),
@@ -433,11 +457,14 @@ async function loadAddressData(address) {
 
   return {
     addressData,
+    lookupMode: lookupTarget.mode,
     totalBtc,
     unconfirmedSats,
     unconfirmedBtc,
     usdPrice,
-    addressType: getAddressType(addressData.address),
+    addressType: getAddressType(addressData.address, {
+      isPublicKey: isPublicKeyLookup,
+    }),
     txCount: addressData.chain_stats.tx_count ?? 0,
     lastTxConfirmations,
     lastTxDate,
@@ -464,6 +491,8 @@ function applyAddressData(data, { silent = false } = {}) {
     );
   }
 
+  metaAddressLabelEl.textContent =
+    data.lookupMode === "pubkey" ? "Public Key:" : "Address:";
   metaAddressEl.textContent = data.addressData.address;
   metaAddressTypeEl.textContent = data.addressType;
   metaTransactionsEl.textContent = data.txCount;
@@ -482,23 +511,23 @@ function applyAddressData(data, { silent = false } = {}) {
     timeSinceEl.textContent = "N/A";
   }
 
-  currentAddress = data.addressData.address;
+  currentLookupInput = data.addressData.address;
   resultEl.classList.add("show");
 }
 
 async function refreshAddressSilently() {
-  if (!currentAddress || refreshInFlight) return;
+  if (!currentLookupInput || refreshInFlight) return;
 
-  const targetAddress = currentAddress;
+  const targetInput = currentLookupInput;
   const generation = lookupGeneration;
   refreshInFlight = true;
 
   try {
-    const data = await loadAddressData(targetAddress);
+    const data = await loadAddressData(targetInput);
     if (
       generation !== lookupGeneration ||
-      targetAddress !== currentAddress ||
-      data.addressData.address !== targetAddress
+      targetInput !== currentLookupInput ||
+      data.addressData.address !== targetInput
     ) {
       return;
     }
@@ -524,12 +553,12 @@ async function lookupAddress() {
   stopBalanceSubCycle();
   stopAutoRefresh();
   hideQrPanel();
-  currentAddress = null;
+  currentLookupInput = null;
   lastConfirmedTimestamp = null;
 
   const address = addressInput.value.trim();
   if (!address) {
-    showError("Please enter a Bitcoin address.");
+    showError("Please enter a Bitcoin address or public key.");
     return;
   }
 
@@ -544,7 +573,11 @@ async function lookupAddress() {
     startAutoRefresh();
   } catch (err) {
     if (generation === lookupGeneration) {
-      showError("Could not fetch balance. Check the address and try again.");
+      const message =
+        err?.message === "Invalid public key hex"
+          ? "Invalid public key. Paste a compressed (02/03...) or uncompressed (04...) key in hex."
+          : "Could not fetch balance. Check the address or public key and try again.";
+      showError(message);
     }
     console.error(err);
   } finally {
