@@ -2,11 +2,11 @@
 
 A lightweight, client-side web app to look up Bitcoin balances and activity directly from the timechain. No backend, no accounts, and no build step — open `index.html` in a browser or serve the folder locally.
 
-Data is fetched live from the [mempool.space](https://mempool.space) public API.
+Data is fetched live from public Bitcoin APIs.
 
 ## What it is used for
 
-- **Search addresses, public keys, and transactions** in one field — the app auto-detects the input type (like mempool.space)
+- **Search addresses, public keys, and transactions** in one field — the app auto-detects the input type
 - **Check confirmed BTC balance** for any address or public key (unconfirmed shown separately)
 - **See the fiat value** of the confirmed balance in real time (USD or BRL)
 - **Inspect on-chain activity** — script type, exposed pubkey status, transaction count, and last transaction details
@@ -79,14 +79,14 @@ Market metrics are cached in `localStorage` for one hour so they survive page re
 
 ### Falling mempool blocks
 
-On page load, the app connects to the mempool.space WebSocket (`wss://mempool.space/api/v1/ws`) and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
+On page load, the app connects to a WebSocket and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
 
 | Block type | Color | When |
 |---|---|---|
 | **Global mempool** | Green → red by fee rate (`fee / vsize`) | Every new transaction in the global mempool |
 | **Watched address** | Purple | A mempool transaction touches the address or pubkey currently being looked up |
 
-Fee colors use the same scale as mempool.space. Blocks are small squares (8–18 px) with a centered **₿** symbol. Up to 36 blocks can fall at once; additional transactions are queued and spawned steadily so the browser stays responsive. If the WebSocket drops, the app falls back to polling `/api/mempool/recent` every 2.5 seconds.
+Fee colors follow a green-to-red scale by fee rate. Blocks are small squares (8–18 px) with a centered **₿** symbol. Up to 36 blocks can fall at once; additional transactions are queued and spawned steadily so the browser stays responsive. If the WebSocket drops, the app falls back to polling `/api/mempool/recent` every 2.5 seconds.
 
 While an address or public key lookup is active, the app also subscribes to that target over the same WebSocket so address-specific mempool events spawn purple blocks (and still trigger transaction sounds).
 
@@ -137,7 +137,7 @@ The application is a static single-page interface made of plain HTML, CSS, and J
               ┌──────────────────────────────┼──────────────────────────────────────────────────────┐
               ▼              ▼               ▼               ▼              ▼         ▼       ▼      ▼
       ┌──────────────┐ ┌──────────┐  ┌──────────────┐ ┌──────────┐  ┌──────────┐ ┌────────┐ ┌──────────┐ ┌────────────┐
-      │pubkey-utils  │ │tx-utils  │  │ mempool.space│ │sounds.js │  │blocks-fx │ │ qrcode │ │ CoinGecko│ │ CoinMetrics│
+      │pubkey-utils  │ │tx-utils  │  │ Bitcoin API  │ │sounds.js │  │blocks-fx │ │ qrcode │ │ CoinGecko│ │ CoinMetrics│
       │.js           │ │.js       │  │ REST + WS    │ │          │  │.js       │ │ (CDN)  │ │          │ │            │
       └──────────────┘ └──────────┘  └──────────────┘ └──────────┘  └──────────┘ └────────┘ └──────────┘ └────────────┘
                                               ▲
@@ -153,7 +153,7 @@ When the user clicks **Check**, `app.js` classifies the input and routes to the 
 **Address / public key**
 
 1. **Classify the input** — `pubkey-utils.js` decides whether the string is a standard address or a hex-encoded secp256k1 public key.
-2. **Resolve the API target** — depending on the input type, the app queries a different mempool.space endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
+2. **Resolve the API target** — depending on the input type, the app queries a different API endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
 3. **Fetch on-chain data** — three lightweight API calls:
    - address or scripthash statistics (`chain_stats` + `mempool_stats`)
    - the most recent confirmed transaction (`/txs/chain`, first page)
@@ -194,8 +194,8 @@ This is the **net** of all pending transactions combined — not just the last o
 
 The fiat line is based on the **confirmed** balance using the live BTC spot price:
 
-- **English** → USD (from mempool.space `GET /api/v1/prices`)
-- **Portuguese** → BRL (from [CoinGecko](https://api.coingecko.com), since mempool.space does not provide BRL)
+- **English** → USD (from `GET /api/v1/prices`)
+- **Portuguese** → BRL (from [CoinGecko](https://api.coingecko.com))
 
 Prices are merged into a local cache so BRL persists across the 10-second refresh cycle. If a price request fails, the last successful cached value is reused.
 
@@ -239,7 +239,7 @@ Timers keep the UI fresh after a successful lookup:
 
 | Timer | Interval | Purpose |
 |---|---|---|
-| Auto-refresh | 10 s | Silently re-fetches address or transaction data from mempool.space |
+| Auto-refresh | 10 s | Silently re-fetches address or transaction data from the API |
 | Block height & price | 10 s | Updates chain tip, difficulty/halving countdown, supply, hashrate, network difficulty, and BTC spot price in the logo tooltip |
 | Market metrics | 1 h | Refreshes Mayer Multiple, MVRV Ratio, and Fear & Greed Index |
 | Time since last transaction | 1 s | Updates the human-readable elapsed time counter (address lookup) |
@@ -271,8 +271,8 @@ Bitcoin **addresses** and **public keys** are not the same thing, and they can h
 For strings that look like normal Bitcoin addresses, the app calls the standard address endpoint:
 
 ```
-GET https://mempool.space/api/address/{address}
-GET https://mempool.space/api/address/{address}/txs/chain
+GET /api/address/{address}
+GET /api/address/{address}/txs/chain
 ```
 
 The address string is sent to the API as-is. Address type (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`) is inferred locally from prefix and length.
@@ -286,7 +286,7 @@ OP_PUSHBYTES_65 <uncompressed pubkey> OP_CHECKSIG   (uncompressed, 04...)
 OP_PUSHBYTES_33 <compressed pubkey>   OP_CHECKSIG   (compressed, 02/03...)
 ```
 
-mempool.space does **not** accept a raw public key on the `/api/address/` route. Instead, the website builds the P2PK script, hashes it, and queries the **scripthash** endpoint — the same approach used in this app and in [mempool's own frontend](https://github.com/mempool/mempool).
+Raw public keys are **not** accepted on the `/api/address/` route. Instead, the app builds the P2PK script, hashes it, and queries the **scripthash** endpoint.
 
 #### Step-by-step (what `pubkey-utils.js` does)
 
@@ -298,10 +298,10 @@ mempool.space does **not** accept a raw public key on the `/api/address/` route.
    - Compressed: `21` + pubkey + `ac`
    (`41` / `21` are push opcodes for 65 / 33 bytes; `ac` is `OP_CHECKSIG`)
 3. **Hash the script** with SHA-256 (via the Web Crypto API) to produce the scripthash.
-4. **Query mempool.space**:
+4. **Query the API**:
    ```
-   GET https://mempool.space/api/scripthash/{scripthash}
-   GET https://mempool.space/api/scripthash/{scripthash}/txs/chain
+   GET /api/scripthash/{scripthash}
+   GET /api/scripthash/{scripthash}/txs/chain
    ```
 
 The result panel labels the field **Public Key:** and shows script type **P2PK**.
@@ -317,7 +317,7 @@ Example — the genesis block uncompressed public key:
 | Public key (P2PK script) | `/api/scripthash/...` | ~50 BTC (coinbase + other P2PK outputs) |
 | Derived P2PKH address `1A1zP1...` | `/api/address/1A1zP1...` | ~57 BTC (includes unrelated donations to that address) |
 
-This app follows mempool.space and queries the **P2PK scripthash** when you paste a public key, so you see the balance locked directly to that key — not the balance of a derived `1...` address.
+When you paste a public key, the app queries the **P2PK scripthash** so you see the balance locked directly to that key — not the balance of a derived `1...` address.
 
 ## Data shown for each lookup
 
