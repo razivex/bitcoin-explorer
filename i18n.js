@@ -3,8 +3,8 @@ const DEFAULT_LANG = "en";
 
 const translations = {
   en: {
-    pageTitle: "Bitcoin Address Explorer",
-    pageHeading: "Bitcoin Address Explorer",
+    pageTitle: "Bitcoin Explorer",
+    pageHeading: "Bitcoin Explorer",
     pageSub:
       "Real time check any bitcoin address or pubkey, including balance, transactions, and other important datas",
     addressLabel: "Bitcoin address or public key",
@@ -26,6 +26,9 @@ const translations = {
     bitcoinPrice: "Price: {value}",
     blocksToDifficulty: "Difficult Adjustment: {blocks}",
     blocksToHalving: "Halving: {blocks}",
+    totalSupply: "Supply: {amount} BTC",
+    hashrate: "Hash Rate: {value}",
+    networkDifficulty: "Difficulty: {value}",
     mayerMultiple: "Mayer Multiple: {value}",
     mvrvRatio: "MVRV Ratio: {value}",
     fearGreedIndex: "Fear & Greed: {value}",
@@ -71,8 +74,8 @@ const translations = {
     pm: "PM",
   },
   "pt-BR": {
-    pageTitle: "Explorador de Endereços Bitcoin",
-    pageHeading: "Explorador de Endereços Bitcoin",
+    pageTitle: "Explorador Bitcoin",
+    pageHeading: "Explorador Bitcoin",
     pageSub:
       "Verificação em tempo real de qualquer endereço bitcoin ou chave pública, incluindo saldo, transações e outros dados importantes",
     addressLabel: "Endereço bitcoin ou chave pública",
@@ -94,6 +97,9 @@ const translations = {
     bitcoinPrice: "Preço: {value}",
     blocksToDifficulty: "Ajuste de Dificuldade: {blocks}",
     blocksToHalving: "Halving: {blocks}",
+    totalSupply: "Oferta: {amount} BTC",
+    hashrate: "Hash Rate: {value}",
+    networkDifficulty: "Dificuldade: {value}",
     mayerMultiple: "Mayer Multiple: {value}",
     mvrvRatio: "MVRV Ratio: {value}",
     fearGreedIndex: "Fear & Greed: {value}",

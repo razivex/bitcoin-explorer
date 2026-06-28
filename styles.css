@@ -10,6 +10,64 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 0 0 24px;
+  position: relative;
+}
+
+.falling-blocks {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.falling-block {
+  position: absolute;
+  top: -80px;
+  box-sizing: border-box;
+  border-radius: 1px;
+  --fee-light: #ffaa33;
+  --fee-base: #f7931a;
+  --fee-dark: #b86a12;
+  --fee-border: rgba(255, 186, 92, 0.7);
+  --fee-glow: rgba(247, 147, 26, 0.35);
+  --block-size: 36px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18) 0%, transparent 42%),
+    linear-gradient(160deg, var(--fee-light) 0%, var(--fee-base) 45%, var(--fee-dark) 100%);
+  border: 1px solid var(--fee-border);
+  box-shadow:
+    0 calc(var(--block-size) * 0.18) calc(var(--block-size) * 0.45) var(--fee-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  will-change: transform, opacity;
+}
+
+.falling-block--address {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.16) 0%, transparent 42%),
+    linear-gradient(160deg, #d8b4fe 0%, #9333ea 45%, #6b21a8 100%);
+  border-color: rgba(216, 180, 254, 0.75);
+  box-shadow:
+    0 calc(var(--block-size) * 0.18) calc(var(--block-size) * 0.45) rgba(147, 51, 234, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.falling-block::before {
+  content: "₿";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--block-size, 36px) * 0.46);
+  font-weight: 800;
+  color: rgba(17, 17, 17, 0.45);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.falling-block--address::before {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .top-nav {
@@ -124,8 +182,26 @@ body {
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239aa7b8'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
 }
 
-.lang-select:hover {
+.lang-select:hover,
+.lang-select:focus {
   border-color: #3a4d66;
+  background-repeat: no-repeat;
+  background-position: left 8px center, right 7px center;
+  background-size: 22px 15px, 10px 10px;
+}
+
+.lang-select--en:hover,
+.lang-select--en:focus {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 13'%3E%3Crect fill='%23B22234' width='19' height='13'/%3E%3Cpath d='M0 1h19M0 3h19M0 5h19M0 7h19M0 9h19M0 11h19' stroke='%23fff' stroke-width='1'/%3E%3Crect fill='%233C3B6E' width='8' height='7'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239aa7b8'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
+}
+
+.lang-select--pt-BR:hover,
+.lang-select--pt-BR:focus {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 14'%3E%3Crect fill='%23009b3a' width='20' height='14'/%3E%3Cpolygon fill='%23fedf00' points='10,1.5 18.5,7 10,12.5 1.5,7'/%3E%3Ccircle fill='%23002776' cx='10' cy='7' r='3.2'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239aa7b8'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
 }
 
 .lang-select:focus {
@@ -239,6 +315,8 @@ body {
 }
 
 .card {
+  position: relative;
+  z-index: 10;
   width: 100%;
   max-width: 520px;
   margin: auto 24px;
@@ -293,14 +371,14 @@ button {
   padding: 12px 18px;
   border: none;
   border-radius: 10px;
-  background: #f7931a;
+  background-color: #f7931a;
   color: #111;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
 }
 
-button:hover { background: #ffaa33; }
+button:hover { background-color: #ffaa33; }
 
 .lang-picker .lang-select,
 .lang-menu__option {
@@ -313,6 +391,7 @@ button:hover { background: #ffaa33; }
 }
 
 .lang-picker .lang-select:hover,
+.lang-picker .lang-select:focus,
 .lang-menu__option:hover {
   background-color: rgba(15, 20, 25, 0.7);
 }
@@ -412,6 +491,10 @@ button:disabled {
   font-weight: 800;
   color: #fff;
   margin-bottom: 6px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.15;
 }
 
 .balance-unconfirmed {
@@ -509,6 +592,7 @@ button:disabled {
   position: fixed;
   right: 20px;
   bottom: 20px;
+  z-index: 10;
   display: flex;
   gap: 10px;
   align-items: center;

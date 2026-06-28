@@ -1,4 +1,4 @@
-# Bitcoin Address Explorer
+# Bitcoin Explorer
 
 A lightweight, client-side web app to look up Bitcoin balances and activity directly from the timechain. No backend, no accounts, and no build step — open `index.html` in a browser or serve the folder locally.
 
@@ -11,6 +11,7 @@ Data is fetched live from the [mempool.space](https://mempool.space) public API.
 - **Inspect on-chain activity** — script type, exposed pubkey status, transaction count, and last transaction details
 - **Track how long ago** the last confirmed transaction occurred
 - **Monitor mempool activity** — directional arrows show pending incoming and outgoing funds
+- **Watch the global mempool** — animated blocks fall behind the card as new transactions enter the mempool, color-coded by fee rate
 - **Get audio alerts** when new unconfirmed or confirmed transactions are detected
 - **Share or receive payments** via a scannable QR code
 - **Monitor live** — data refreshes automatically every 10 seconds
@@ -52,10 +53,15 @@ Hover the Bitcoin logo in the navigation bar to see live on-chain and market dat
 | **Height** | Every 10 s | Current chain tip block height |
 | **Difficult Adjustment** | Every 10 s | Blocks remaining until the next difficulty retarget |
 | **Halving** | Every 10 s | Blocks remaining until the next halving |
+| **Supply** | Every 10 s | Total BTC supply at the current height (whole BTC, no decimals) |
+| **Hash Rate** | Every 10 s | Current network hashrate (e.g. `XX.XX ZH/s`) |
+| **Difficulty** | Every 10 s | Current network difficulty (e.g. `133.87T`) |
 | **Mayer Multiple** | Every 1 h | BTC price divided by the 200-day moving average |
 | **MVRV Ratio** | Every 1 h | Market value to realized value ratio |
 | **Fear & Greed** | Every 1 h | Crypto Fear & Greed Index (0–100) |
 | **Price** | Every 10 s | Current BTC spot price in USD or BRL |
+
+Hash rate and difficulty come from `GET /api/v1/mining/hashrate/3d`. Total supply is computed locally from the halving schedule at the current block height.
 
 Mayer Multiple, MVRV, and Fear & Greed values are **color-coded**:
 
@@ -66,6 +72,19 @@ Mayer Multiple, MVRV, and Fear & Greed values are **color-coded**:
 | **Red** | Expensive / overvalued (Mayer &gt; 2.4, MVRV &gt; 3.7, Greed) |
 
 Market metrics are cached in `localStorage` for one hour so they survive page reloads and API rate limits.
+
+### Falling mempool blocks
+
+On page load, the app connects to the mempool.space WebSocket (`wss://mempool.space/api/v1/ws`) and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
+
+| Block type | Color | When |
+|---|---|---|
+| **Global mempool** | Green → red by fee rate (`fee / vsize`) | Every new transaction in the global mempool |
+| **Watched address** | Purple | A mempool transaction touches the address or pubkey currently being looked up |
+
+Fee colors use the same scale as mempool.space. Blocks are small squares (8–18 px) with a centered **₿** symbol. Up to 36 blocks can fall at once; additional transactions are queued and spawned steadily so the browser stays responsive. If the WebSocket drops, the app falls back to polling `/api/mempool/recent` every 2.5 seconds.
+
+While an address or public key lookup is active, the app also subscribes to that target over the same WebSocket so address-specific mempool events spawn purple blocks (and still trigger transaction sounds).
 
 ### Supported inputs
 
@@ -89,12 +108,12 @@ The application is a static single-page interface made of plain HTML, CSS, and J
 │  styles.css │                     │  (orchestration) │
 └─────────────┘                     └────────┬─────────┘
                                              │
-              ┌──────────────────────────────┼──────────────────────────────────────┐
-              ▼              ▼               ▼               ▼              ▼         ▼
-      ┌──────────────┐ ┌──────────┐  ┌──────────────┐ ┌──────────┐  ┌──────────┐ ┌────────────┐
-      │pubkey-utils  │ │  i18n.js │  │ mempool.space│ │sounds.js │  │ qrcode   │ │ CoinGecko, │
-      │.js           │ │          │  │ REST API     │ │          │  │ (CDN)    │ │ CoinMetrics│
-      └──────────────┘ └──────────┘  └──────────────┘ └──────────┘  └──────────┘ └────────────┘
+              ┌──────────────────────────────┼──────────────────────────────────────────────┐
+              ▼              ▼               ▼               ▼              ▼         ▼       ▼
+      ┌──────────────┐ ┌──────────┐  ┌──────────────┐ ┌──────────┐  ┌──────────┐ ┌──────────┐ ┌────────────┐
+      │pubkey-utils  │ │  i18n.js │  │ mempool.space│ │sounds.js │  │blocks-fx │ │ qrcode   │ │ CoinGecko, │
+      │.js           │ │          │  │ REST + WS    │ │          │  │.js       │ │ (CDN)    │ │ CoinMetrics│
+      └──────────────┘ └──────────┘  └──────────────┘ └──────────┘  └──────────┘ └──────────┘ └────────────┘
 ```
 
 ### Lookup flow
@@ -181,7 +200,7 @@ Timers keep the UI fresh after a successful lookup:
 | Timer | Interval | Purpose |
 |---|---|---|
 | Auto-refresh | 10 s | Silently re-fetches all on-chain data from mempool.space |
-| Block height & price | 10 s | Updates chain tip, difficulty/halving countdown, and BTC spot price in the logo tooltip |
+| Block height & price | 10 s | Updates chain tip, difficulty/halving countdown, supply, hashrate, network difficulty, and BTC spot price in the logo tooltip |
 | Market metrics | 1 h | Refreshes Mayer Multiple, MVRV Ratio, and Fear & Greed Index |
 | Time since last transaction | 1 s | Updates the human-readable elapsed time counter |
 | Fiat / unconfirmed cycle | 10 s | When mempool activity exists, alternates the subtitle between fiat value and unconfirmed BTC (with a fade transition) |
@@ -288,6 +307,7 @@ This app follows mempool.space and queries the **P2PK scripthash** when you past
 | `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
 | `i18n.js` | English / Brazilian Portuguese translations and language picker |
 | `sounds.js` | Web Audio transaction alert sounds and mute toggle |
+| `blocks-fx.js` | Mempool WebSocket, falling-block animation, fee-based and address-specific block colors |
 | `favicon.svg` | Bitcoin logo favicon |
 
 ## External dependencies
@@ -295,7 +315,8 @@ This app follows mempool.space and queries the **P2PK scripthash** when you past
 | Dependency | Loaded from | Used for |
 |---|---|---|
 | [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr CDN | QR code generation |
-| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` | On-chain data, block height, and USD prices |
+| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` | On-chain data, block height, mining stats, and USD prices |
+| [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` | Live global mempool and watched-address transaction events |
 | [CoinGecko API](https://www.coingecko.com/en/api) | `api.coingecko.com` | BRL spot price and Mayer Multiple fallback (200-day SMA) |
 | [CoinMetrics Community API](https://community-api.coinmetrics.io/) | `community-api.coinmetrics.io` | MVRV Ratio fallback (`CapMVRVCur`) |
 | [bitcoin-data.com API](https://bitcoin-data.com/) | `bitcoin-data.com` | Primary Mayer Multiple and MVRV data (rate-limited) |

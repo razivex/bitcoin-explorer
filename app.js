@@ -22,6 +22,8 @@ const UPDATE_INTERVAL_MS = 10000;
 const BALANCE_SUB_FADE_MS = 600;
 const DIFFICULTY_ADJUSTMENT_INTERVAL = 2016;
 const HALVING_INTERVAL = 210_000;
+const BALANCE_BTC_MAX_FONT_PX = 32;
+const BALANCE_BTC_MIN_FONT_PX = 11;
 const addressInput = document.getElementById("address");
 const lookupBtn = document.getElementById("lookupBtn");
 const resultEl = document.getElementById("result");
@@ -65,6 +67,10 @@ let txWatchState = {
 };
 let lastAppliedData = null;
 let cachedBlockHeight = null;
+let cachedMiningStats = {
+  hashrate: null,
+  difficulty: null,
+};
 let blockHeightInterval = null;
 let marketMetricsInterval = null;
 let cachedMarketMetrics = {
@@ -140,6 +146,10 @@ function detectAndPlayTxSounds(data, { silent = false } = {}) {
     playConfirmedSound();
   } else if (newUnconfirmed) {
     playBellSound();
+    if (!isMempoolSocketConnected()) {
+      const newAddressTxCount = mempoolTxCount - txWatchState.mempoolTxCount;
+      spawnAddressBlocks(newAddressTxCount);
+    }
   }
 
   txWatchState = {
@@ -662,9 +672,20 @@ async function loadAddressData(address) {
     }
   }
 
+  const watchTarget = {
+    mode: lookupTarget.mode,
+    displayValue: lookupTarget.displayValue,
+    queryKey: lookupTarget.queryKey,
+    scriptPubKey:
+      lookupTarget.mode === "pubkey"
+        ? buildP2pkScriptPubKey(lookupTarget.displayValue)
+        : null,
+  };
+
   return {
     addressData,
     lookupMode: lookupTarget.mode,
+    watchTarget,
     confirmedBtc,
     unconfirmedSats,
     unconfirmedBtc,
@@ -683,6 +704,7 @@ async function loadAddressData(address) {
 
 function applyAddressData(data, { silent = false } = {}) {
   balanceBtcEl.textContent = `${formatBtc(data.confirmedBtc)} BTC`;
+  scheduleBalanceBtcFit();
 
   const arrows = getUnconfirmedArrowState(data.addressData.mempool_stats);
   balanceSubState.arrowUp = arrows.up;
@@ -778,6 +800,7 @@ async function lookupAddress() {
   currentLookupInput = null;
   lastTxTimestamp = null;
   lastAppliedData = null;
+  clearWatchedLookup();
   resetTxWatchState();
 
   const address = addressInput.value.trim();
@@ -794,6 +817,7 @@ async function lookupAddress() {
     if (generation !== lookupGeneration) return;
 
     applyAddressData(data, { silent: false });
+    setWatchedLookup(data.watchTarget);
     startAutoRefresh();
   } catch (err) {
     if (generation === lookupGeneration) {
@@ -810,6 +834,29 @@ async function lookupAddress() {
       lookupBtn.textContent = t("check");
     }
   }
+}
+
+function fitBalanceBtcToWidth() {
+  if (!balanceBtcEl || !resultEl.classList.contains("show")) return;
+
+  balanceBtcEl.style.fontSize = `${BALANCE_BTC_MAX_FONT_PX}px`;
+
+  if (balanceBtcEl.clientWidth === 0) return;
+
+  let fontSize = BALANCE_BTC_MAX_FONT_PX;
+  while (
+    fontSize > BALANCE_BTC_MIN_FONT_PX &&
+    balanceBtcEl.scrollWidth > balanceBtcEl.clientWidth
+  ) {
+    fontSize -= 1;
+    balanceBtcEl.style.fontSize = `${fontSize}px`;
+  }
+}
+
+function scheduleBalanceBtcFit() {
+  requestAnimationFrame(() => {
+    fitBalanceBtcToWidth();
+  });
 }
 
 function truncateMiddle(text, visibleChars) {
@@ -871,6 +918,83 @@ function blocksUntilHalving(blockHeight) {
   const nextHalving =
     (Math.floor(blockHeight / HALVING_INTERVAL) + 1) * HALVING_INTERVAL;
   return nextHalving - blockHeight;
+}
+
+function totalBtcSupplyFromHeight(blockHeight) {
+  const height = Number(blockHeight);
+  if (!Number.isFinite(height) || height < 0) return null;
+
+  let remainingBlocks = height + 1;
+  let era = 0;
+  let supplyBtc = 0;
+
+  while (remainingBlocks > 0) {
+    const blockSubsidyBtc = 50 / 2 ** era;
+    const blocksInEra = Math.min(remainingBlocks, HALVING_INTERVAL);
+    supplyBtc += blocksInEra * blockSubsidyBtc;
+    remainingBlocks -= blocksInEra;
+    era += 1;
+  }
+
+  return supplyBtc;
+}
+
+function formatTotalBtcSupply(blockHeight) {
+  const supplyBtc = totalBtcSupplyFromHeight(blockHeight);
+  if (supplyBtc === null) return t("na");
+  return Math.floor(supplyBtc).toLocaleString(getLocale(), {
+    maximumFractionDigits: 0,
+  });
+}
+
+const AMOUNT_SHORTENER_UNITS = [
+  { value: 1, symbol: "" },
+  { value: 1e3, symbol: "k" },
+  { value: 1e6, symbol: "M" },
+  { value: 1e9, symbol: "G" },
+  { value: 1e12, symbol: "T" },
+  { value: 1e15, symbol: "P" },
+  { value: 1e18, symbol: "E" },
+  { value: 1e21, symbol: "Z" },
+  { value: 1e24, symbol: "Y" },
+];
+
+function amountShortener(num, digits = 1, unit, sigfigs = false) {
+  const value = Number(num);
+  if (!Number.isFinite(value) || value <= 0) return t("na");
+
+  if (value < 1000) {
+    const formattedNum = sigfigs
+      ? Number(value.toPrecision(digits)).toString()
+      : Number(value.toFixed(digits)).toString();
+
+    return unit !== undefined ? `${formattedNum} ${unit}` : formattedNum;
+  }
+
+  const item = [...AMOUNT_SHORTENER_UNITS]
+    .reverse()
+    .find((entry) => value >= entry.value);
+
+  if (!item) return "0";
+
+  const scaledNum = value / item.value;
+  const formattedNum = sigfigs
+    ? Number(scaledNum.toPrecision(digits)).toString()
+    : Number(scaledNum.toFixed(digits)).toString();
+
+  if (unit !== undefined) {
+    return `${formattedNum} ${item.symbol}${unit}`;
+  }
+
+  return `${formattedNum}${item.symbol}`;
+}
+
+function formatHashrate(hashrateHs) {
+  return amountShortener(hashrateHs, 2, "H/s");
+}
+
+function formatNetworkDifficulty(difficulty) {
+  return amountShortener(difficulty, 2);
 }
 
 function formatMetric(value, decimals = 2) {
@@ -1032,6 +1156,20 @@ function updateBlockHeightTooltip() {
       blocks: formatBlockHeight(blocksUntilHalving(blockHeight)),
     }),
   );
+  appendTooltipLine(
+    blockHeightTooltipEl,
+    t("totalSupply", { amount: formatTotalBtcSupply(blockHeight) }),
+  );
+  appendTooltipLine(
+    blockHeightTooltipEl,
+    t("hashrate", { value: formatHashrate(cachedMiningStats.hashrate) }),
+  );
+  appendTooltipLine(
+    blockHeightTooltipEl,
+    t("networkDifficulty", {
+      value: formatNetworkDifficulty(cachedMiningStats.difficulty),
+    }),
+  );
   appendTooltipMetricLine(
     blockHeightTooltipEl,
     "mayerMultiple",
@@ -1139,11 +1277,30 @@ function startMarketMetricsRefresh() {
   );
 }
 
+async function fetchMiningStats() {
+  try {
+    const data = await fetchJson(`${API_BASE}/v1/mining/hashrate/3d`);
+    const hashrate = Number(data?.currentHashrate);
+    const difficulty = Number(data?.currentDifficulty);
+
+    if (Number.isFinite(hashrate) && hashrate > 0) {
+      cachedMiningStats.hashrate = hashrate;
+    }
+
+    if (Number.isFinite(difficulty) && difficulty > 0) {
+      cachedMiningStats.difficulty = difficulty;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function fetchBlockHeight() {
   try {
     const [heightResponse] = await Promise.all([
       fetch(`${API_BASE}/blocks/tip/height`),
       fetchFiatPrice(),
+      fetchMiningStats(),
     ]);
 
     if (!heightResponse.ok) {
@@ -1189,6 +1346,7 @@ addressInput.addEventListener("keydown", (event) => {
 
 window.addEventListener("resize", () => {
   fitMetaAddressToWidth();
+  fitBalanceBtcToWidth();
 });
 
 onLanguageChange(() => {

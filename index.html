@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bitcoin Address Explorer</title>
+  <title>Bitcoin Explorer</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="fallingBlocks" class="falling-blocks" aria-hidden="true"></div>
   <header class="top-nav">
     <div class="top-nav__brand">
       <svg class="top-nav__logo" viewBox="0 0 24 24" aria-hidden="true">
@@ -54,7 +55,7 @@
   </header>
 
   <main class="card">
-    <h1 data-i18n="pageHeading">Bitcoin Address Explorer</h1>
+    <h1 data-i18n="pageHeading">Bitcoin Explorer</h1>
     <p class="sub" data-i18n="pageSub">Real time check any bitcoin address or pubkey, including balance, transactions, and other important datas</p>
 
     <label for="address" data-i18n="addressLabel">Bitcoin address or public key</label>
@@ -122,6 +123,7 @@
   <script src="pubkey-utils.js"></script>
   <script src="i18n.js"></script>
   <script src="sounds.js"></script>
+  <script src="blocks-fx.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
