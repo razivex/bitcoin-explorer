@@ -2,7 +2,7 @@
 
 A lightweight, client-side web app to look up Bitcoin balances and activity directly from the timechain. No backend, no accounts, and no build step — open `index.html` in a browser or serve the folder locally.
 
-Data is fetched live from public Bitcoin APIs.
+Data is fetched live from the [mempool.space](https://mempool.space) public API.
 
 ## What it is used for
 
@@ -65,7 +65,7 @@ Hover the Bitcoin logo in the navigation bar to see live on-chain and market dat
 | **Fear & Greed** | Every 1 h | Crypto Fear & Greed Index (0–100) |
 | **Price** | Every 10 s | Current BTC spot price in USD or BRL |
 
-Hash rate and difficulty come from `GET /api/v1/mining/hashrate/3d`. Total supply is computed locally from the halving schedule at the current block height.
+Hash rate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Total supply is computed locally from the halving schedule at the current block height.
 
 Mayer Multiple, MVRV, and Fear & Greed values are **color-coded**:
 
@@ -79,7 +79,7 @@ Market metrics are cached in `localStorage` for one hour so they survive page re
 
 ### Falling mempool blocks
 
-On page load, the app connects to a WebSocket and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
+On page load, the app connects to the mempool.space WebSocket (`wss://mempool.space/api/v1/ws`) and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
 
 | Block type | Color | When |
 |---|---|---|
@@ -120,7 +120,7 @@ When a txid is detected, the result panel shows:
 | **Time to confirmation** | Elapsed time from first seen to confirmation (`N/A` while pending) |
 | **Time since confirmation** | Live counter from confirmation time (`N/A` while pending) |
 
-First-seen time for confirmed transactions comes from `GET /api/v1/transaction-times` while still in the mempool, with a fallback to `GET /api/v1/block/{hash}/tx/{txid}/summary` after confirmation.
+First-seen time for confirmed transactions comes from mempool.space `GET /api/v1/transaction-times` while still in the mempool, with a fallback to `GET /api/v1/block/{hash}/tx/{txid}/summary` after confirmation.
 
 Transaction data refreshes every **10 seconds**. A mechanical click sound plays when a watched transaction moves from unconfirmed to confirmed (respects the mute toggle).
 
@@ -137,7 +137,7 @@ The application is a static single-page interface made of plain HTML, CSS, and J
               ┌──────────────────────────────┼──────────────────────────────────────────────────────┐
               ▼              ▼               ▼               ▼              ▼         ▼       ▼      ▼
       ┌──────────────┐ ┌──────────┐  ┌──────────────┐ ┌──────────┐  ┌──────────┐ ┌────────┐ ┌──────────┐ ┌────────────┐
-      │pubkey-utils  │ │tx-utils  │  │ Bitcoin API  │ │sounds.js │  │blocks-fx │ │ qrcode │ │ CoinGecko│ │ CoinMetrics│
+      │pubkey-utils  │ │tx-utils  │  │ mempool.space│ │sounds.js │  │blocks-fx │ │ qrcode │ │ CoinGecko│ │ CoinMetrics│
       │.js           │ │.js       │  │ REST + WS    │ │          │  │.js       │ │ (CDN)  │ │          │ │            │
       └──────────────┘ └──────────┘  └──────────────┘ └──────────┘  └──────────┘ └────────┘ └──────────┘ └────────────┘
                                               ▲
@@ -153,7 +153,7 @@ When the user clicks **Check**, `app.js` classifies the input and routes to the 
 **Address / public key**
 
 1. **Classify the input** — `pubkey-utils.js` decides whether the string is a standard address or a hex-encoded secp256k1 public key.
-2. **Resolve the API target** — depending on the input type, the app queries a different API endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
+2. **Resolve the API target** — depending on the input type, the app queries a different mempool.space endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
 3. **Fetch on-chain data** — three lightweight API calls:
    - address or scripthash statistics (`chain_stats` + `mempool_stats`)
    - the most recent confirmed transaction (`/txs/chain`, first page)
@@ -164,7 +164,7 @@ When the user clicks **Check**, `app.js` classifies the input and routes to the 
 **Transaction ID**
 
 1. **Detect txid** — `tx-utils.js` matches 64-character hex strings.
-2. **Fetch transaction** — `GET /api/tx/{txid}` plus first-seen time from `GET /api/v1/transaction-times` (with block-summary fallback for confirmed txs).
+2. **Fetch transaction** — mempool.space `GET /api/tx/{txid}` plus first-seen time from `GET /api/v1/transaction-times` (with block-summary fallback for confirmed txs).
 3. **Analyze outputs** — fee rate, virtual size, embedded-data detection, and confirmation count vs chain tip.
 4. **Render the transaction panel** and start live timers (confirmation elapsed time, confirmation count).
 
@@ -194,8 +194,8 @@ This is the **net** of all pending transactions combined — not just the last o
 
 The fiat line is based on the **confirmed** balance using the live BTC spot price:
 
-- **English** → USD (from `GET /api/v1/prices`)
-- **Portuguese** → BRL (from [CoinGecko](https://api.coingecko.com))
+- **English** → USD (from mempool.space `GET /api/v1/prices`)
+- **Portuguese** → BRL (from [CoinGecko](https://api.coingecko.com), since mempool.space does not provide BRL)
 
 Prices are merged into a local cache so BRL persists across the 10-second refresh cycle. If a price request fails, the last successful cached value is reused.
 
@@ -239,7 +239,7 @@ Timers keep the UI fresh after a successful lookup:
 
 | Timer | Interval | Purpose |
 |---|---|---|
-| Auto-refresh | 10 s | Silently re-fetches address or transaction data from the API |
+| Auto-refresh | 10 s | Silently re-fetches address or transaction data from mempool.space |
 | Block height & price | 10 s | Updates chain tip, difficulty/halving countdown, supply, hashrate, network difficulty, and BTC spot price in the logo tooltip |
 | Market metrics | 1 h | Refreshes Mayer Multiple, MVRV Ratio, and Fear & Greed Index |
 | Time since last transaction | 1 s | Updates the human-readable elapsed time counter (address lookup) |
@@ -271,8 +271,8 @@ Bitcoin **addresses** and **public keys** are not the same thing, and they can h
 For strings that look like normal Bitcoin addresses, the app calls the standard address endpoint:
 
 ```
-GET /api/address/{address}
-GET /api/address/{address}/txs/chain
+GET https://mempool.space/api/address/{address}
+GET https://mempool.space/api/address/{address}/txs/chain
 ```
 
 The address string is sent to the API as-is. Address type (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`) is inferred locally from prefix and length.
@@ -286,7 +286,7 @@ OP_PUSHBYTES_65 <uncompressed pubkey> OP_CHECKSIG   (uncompressed, 04...)
 OP_PUSHBYTES_33 <compressed pubkey>   OP_CHECKSIG   (compressed, 02/03...)
 ```
 
-Raw public keys are **not** accepted on the `/api/address/` route. Instead, the app builds the P2PK script, hashes it, and queries the **scripthash** endpoint.
+mempool.space does **not** accept a raw public key on the `/api/address/` route. Instead, the app builds the P2PK script, hashes it, and queries the **scripthash** endpoint.
 
 #### Step-by-step (what `pubkey-utils.js` does)
 
@@ -298,10 +298,10 @@ Raw public keys are **not** accepted on the `/api/address/` route. Instead, the 
    - Compressed: `21` + pubkey + `ac`
    (`41` / `21` are push opcodes for 65 / 33 bytes; `ac` is `OP_CHECKSIG`)
 3. **Hash the script** with SHA-256 (via the Web Crypto API) to produce the scripthash.
-4. **Query the API**:
+4. **Query mempool.space**:
    ```
-   GET /api/scripthash/{scripthash}
-   GET /api/scripthash/{scripthash}/txs/chain
+   GET https://mempool.space/api/scripthash/{scripthash}
+   GET https://mempool.space/api/scripthash/{scripthash}/txs/chain
    ```
 
 The result panel labels the field **Public Key:** and shows script type **P2PK**.
