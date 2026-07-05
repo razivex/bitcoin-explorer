@@ -4,6 +4,8 @@ function resetLookupUiState() {
   stopAutoRefresh();
   resetTransactionLookupState();
   hideQrPanel();
+  hideActionMenu();
+  hideExportOverlay();
   AppState.currentLookupInput = null;
   AppState.lastTxTimestamp = null;
   AppState.lastAppliedData = null;

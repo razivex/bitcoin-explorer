@@ -6,7 +6,7 @@ function initApp() {
 
 function bindAppEvents() {
   AppDom.lookupBtn.addEventListener("click", performLookup);
-  AppDom.qrBtn.addEventListener("click", showQrCode);
+  bindActionMenuEvents();
   AppDom.qrOverlay.addEventListener("click", (event) => {
     if (event.target === AppDom.qrOverlay) {
       hideQrPanel();

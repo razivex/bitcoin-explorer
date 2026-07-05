@@ -92,11 +92,59 @@
     </section>
 
     <section id="result" class="result" aria-live="polite">
-      <button id="qrBtn" class="qr-btn" type="button" data-i18n="qrShow" data-i18n-attr="aria-label" aria-label="Show address QR code" data-i18n-title="qrTitle" title="QR code">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm0 4h3v2h-3v-2zm-4-4h2v2h-2v-2zm2 4h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 4h2v2h-2v-2zm0-8h2v2h-2v-2z"/>
-        </svg>
-      </button>
+      <div class="action-menu">
+        <button
+          id="actionMenuBtn"
+          class="action-menu__btn"
+          type="button"
+          data-i18n="actionMenuLabel"
+          data-i18n-attr="aria-label"
+          aria-label="More actions"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          title="More actions"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.8"/>
+            <circle cx="12" cy="12" r="1.8"/>
+            <circle cx="12" cy="19" r="1.8"/>
+          </svg>
+        </button>
+        <ul id="actionMenu" class="action-menu__dropdown" role="menu" hidden>
+          <li role="none">
+            <button
+              id="actionQrBtn"
+              class="action-menu__option"
+              type="button"
+              role="menuitem"
+              data-i18n="qrShow"
+              data-i18n-attr="aria-label"
+              aria-label="Show address QR code"
+            >
+              <svg class="action-menu__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm0 4h3v2h-3v-2zm-4-4h2v2h-2v-2zm2 4h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 4h2v2h-2v-2zm0-8h2v2h-2v-2z"/>
+              </svg>
+              <span class="action-menu__label" data-i18n="qrShow">Show address QR code</span>
+            </button>
+          </li>
+          <li role="none">
+            <button
+              id="actionExportBtn"
+              class="action-menu__option"
+              type="button"
+              role="menuitem"
+              data-i18n="actionMenuExport"
+              data-i18n-attr="aria-label"
+              aria-label="Export transactions to Excel"
+            >
+              <svg class="action-menu__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2 5 5h-5V4zM8 13h8v2H8v-2zm0 4h8v2H8v-2z"/>
+              </svg>
+              <span class="action-menu__label" data-i18n="actionMenuExport">Export transactions to Excel</span>
+            </button>
+          </li>
+        </ul>
+      </div>
       <div class="balance-btc" id="balanceBtc">0.00000000 BTC</div>
       <div class="balance-unconfirmed" id="balanceUnconfirmed"></div>
       <div class="meta" id="meta">
@@ -137,7 +185,22 @@
     </div>
   </div>
 
+  <div id="exportOverlay" class="export-overlay" hidden aria-live="polite" aria-busy="true">
+    <div class="export-overlay__panel">
+      <svg class="export-overlay__gear" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.05-.7-1.65-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.6.24-1.15.57-1.65.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.05.7 1.65.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.6-.24 1.15-.57 1.65-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      </svg>
+      <p id="exportOverlayPhase" class="export-overlay__phase" data-i18n="exportGenerating">Generating file...</p>
+      <div class="export-overlay__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0%">
+        <div id="exportProgressBar" class="export-overlay__progress-bar"></div>
+        <span id="exportProgressPercent" class="export-overlay__percent">0%</span>
+      </div>
+      <p id="exportProgressDetail" class="export-overlay__detail"></p>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="api-client.js"></script>
   <script src="pubkey-utils.js"></script>
   <script src="tx-utils.js"></script>
@@ -154,6 +217,8 @@
   <script src="address-lookup.js"></script>
   <script src="tx-lookup.js"></script>
   <script src="qr.js"></script>
+  <script src="action-menu.js"></script>
+  <script src="tx-export.js"></script>
   <script src="chain-stats.js"></script>
   <script src="lookup.js"></script>
   <script src="blocks-fx.js"></script>

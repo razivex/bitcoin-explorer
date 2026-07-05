@@ -4,21 +4,15 @@ A lightweight, client-side web app to look up Bitcoin balances and activity dire
 
 ## What it is used for
 
-- **Search addresses, public keys, and transactions** in one field — the app auto-detects the input type
-- **Check confirmed BTC balance** for any address or public key (unconfirmed shown separately)
-- **See the fiat value** of the confirmed balance in real time (USD or BRL)
-- **Inspect on-chain activity** — script type, exposed pubkey status, transaction count, and last transaction details
-- **Track how long ago** the last confirmed transaction occurred
-- **Monitor mempool activity** — directional arrows show pending incoming and outgoing funds
-- **Watch the global mempool** — animated blocks fall behind the card as new transactions enter the mempool, color-coded by fee rate
-- **Look up any transaction** by txid — output value, fee, confirmations, first-seen date, confirmation timing, and embedded data (OP_RETURN, inscriptions, runes, etc.)
-- **Get audio alerts** when new unconfirmed or confirmed transactions are detected (including when a watched transaction confirms)
-- **Share or receive payments** via a scannable QR code
-- **Monitor live** — data refreshes automatically every 10 seconds
-- **Switch language** between English and Brazilian Portuguese
-- **Stay online when APIs fail** — automatic provider fallbacks with a 5-second timeout per request
+- **Look up any Bitcoin address, public key, or transaction** in one search box
+- **Check confirmed balance** and see the live fiat value (USD or BRL)
+- **Review on-chain activity** — script type, transaction count, last transaction date, and whether the pubkey is exposed
+- **Track pending funds** while waiting for confirmation — net unconfirmed amount with incoming/outgoing arrows
+- **Inspect a transaction** — output value, fee, confirmations, mempool first-seen time, time to confirmation, and embedded data (OP_RETURN, inscriptions, runes, etc.)
+- **Export confirmed transaction history** to Excel (`.xlsx`) with a summary sheet
+- **Share an address or public key** via a scannable QR code
 
-Useful for quickly verifying a donation address, checking a wallet balance, or exploring legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
+Useful for verifying a donation address, checking a wallet balance, exporting records for accounting, or exploring legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
 
 ## How to use
 
@@ -151,8 +145,9 @@ The application is a static single-page interface made of plain HTML, CSS, and J
                     ▼                             │
     ┌─────────────────────────────────────────────┴──────────────────┐
     │ dom.js · state.js · format.js · btc.js · prices.js · ui.js     │
-    │ balance-sub.js · tx-sounds.js · qr.js · pubkey-utils.js        │
-    │ tx-utils.js · i18n.js · sounds.js                              │
+    │ balance-sub.js · tx-sounds.js · qr.js · action-menu.js        │
+    │ tx-export.js · pubkey-utils.js · tx-utils.js · i18n.js        │
+    │ sounds.js                                                      │
     └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -259,9 +254,49 @@ Timers keep the UI fresh after a successful lookup:
 
 Auto-refresh uses a generation counter so stale responses from earlier lookups are ignored if the user submits a new input before the request finishes.
 
+### Action menu (address / public key results)
+
+After a successful address or public key lookup, a **⋯** button appears in the top-right corner of the result card:
+
+| Option | Purpose |
+|---|---|
+| **Show address QR code** | Opens a black-and-white QR code for the looked-up address or public key |
+| **Export transactions to Excel** | Downloads a formatted `.xlsx` file (confirmed transactions only) |
+
 ### QR code
 
-The QR button encodes the original lookup value (address or public key hex) into a canvas using the `qrcode` library loaded from jsDelivr.
+The QR option encodes the original lookup value (address or public key hex) into a canvas using the `qrcode` library loaded from jsDelivr. The code is standard black on white with a minimal quiet zone.
+
+### Excel export
+
+Export builds a workbook in the **language currently selected in the app** (English or Brazilian Portuguese).
+
+While the file is generated, a blurred overlay shows the current step, a progress bar with percentage, and a detail line (for example `Transactions: 50 / 156`).
+
+**Export phases:**
+
+1. Fetch confirmed transactions from the chain (`/txs/chain`, paginated)
+2. Fetch mempool first-seen timestamps for each transaction (with block-audit fallback for older txs)
+3. Build the spreadsheet and download
+
+**Transactions sheet** — one row per confirmed transaction:
+
+| Column | Description |
+|---|---|
+| Transaction ID | Full txid |
+| Timestamp Mempool (UTC) | First seen in the mempool (`YYYY-MM-DD HH:MM:SS`) |
+| Timestamp Confirmed (UTC) | Block time when confirmed |
+| Confirmation Time | Elapsed time from mempool to confirmation |
+| Type | Received or Sent (color-coded in the Type column only) |
+| Amount (BTC) | Net amount for the address (positive = received, negative = sent) |
+| Fee (BTC) | Transaction fee |
+| Block Height | Confirmation block height |
+| Inputs Count | Number of inputs |
+| Outputs Count | Number of outputs |
+
+**Summary sheet** — address or public key, total transactions, total received, total sent, and current confirmed balance.
+
+Unconfirmed mempool transactions are **not** included in the export.
 
 ### Internationalization
 
@@ -357,7 +392,7 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page structure, navigation bar, unified search form, address/transaction result panels, QR overlay |
+| `index.html` | Page structure, navigation bar, unified search form, address/transaction result panels, action menu, QR overlay, export progress overlay |
 | `styles.css` | Dark-themed styling, unconfirmed status blink animation |
 | `app.js` | Thin orchestrator — initializes background refresh and binds UI events |
 | `api-client.js` | Mempool API client with 5 s timeout and multi-provider fallbacks |
@@ -373,6 +408,8 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 | `tx-lookup.js` | Transaction data loading, rendering, and auto-refresh |
 | `lookup.js` | Input routing — address/pubkey vs transaction ID |
 | `qr.js` | QR code overlay generation |
+| `action-menu.js` | ⋯ menu with QR and export options |
+| `tx-export.js` | Confirmed transaction export to Excel (ExcelJS) |
 | `chain-stats.js` | Block height, mining stats, market metrics, logo tooltip |
 | `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
 | `tx-utils.js` | Txid validation, embedded-data detection (OP_RETURN, inscriptions, runes, BRC-20, images) |
@@ -386,6 +423,7 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 | Dependency | Loaded from | Used for |
 |---|---|---|
 | [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr CDN | QR code generation |
+| [ExcelJS](https://www.npmjs.com/package/exceljs) | jsDelivr CDN | Excel export (.xlsx) |
 | [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` (+ mirrors) | Primary on-chain data, block height, mining stats, and USD prices |
 | [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live global mempool and watched-address transaction events |
 | [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | `blockstream.info` | Fallback for address, tx, scripthash, and block-height endpoints |
