@@ -16,6 +16,7 @@ A lightweight, client-side web app to look up Bitcoin balances and activity dire
 - **Share or receive payments** via a scannable QR code
 - **Monitor live** — data refreshes automatically every 10 seconds
 - **Switch language** between English and Brazilian Portuguese
+- **Stay online when APIs fail** — automatic provider fallbacks with a 5-second timeout per request
 
 Useful for quickly verifying a donation address, checking a wallet balance, or exploring legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
 
@@ -77,14 +78,14 @@ Market metrics are cached in `localStorage` for one hour so they survive page re
 
 ### Falling mempool blocks
 
-On page load, the app connects to the mempool.space WebSocket (`wss://mempool.space/api/v1/ws`) and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
+On page load, the app connects to a mempool WebSocket (mempool.space first, then public mirrors) and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
 
 | Block type | Color | When |
 |---|---|---|
 | **Global mempool** | Green → red by fee rate (`fee / vsize`) | Every new transaction in the global mempool |
 | **Watched address** | Purple | A mempool transaction touches the address or pubkey currently being looked up |
 
-Fee colors follow a green-to-red scale by fee rate. Blocks are small squares (8–18 px) with a centered **₿** symbol. Up to 36 blocks can fall at once; additional transactions are queued and spawned steadily so the browser stays responsive. If the WebSocket drops, the app falls back to polling `/api/mempool/recent` every 2.5 seconds.
+Fee colors follow a green-to-red scale by fee rate. Blocks are small squares (8–18 px) with a centered **₿** symbol. Up to 36 blocks can fall at once; additional transactions are queued and spawned steadily so the browser stays responsive. If the WebSocket drops or cannot connect within 5 seconds, the app rotates to the next WebSocket mirror and falls back to polling `/api/mempool/recent` every 2.5 seconds (also with provider fallbacks).
 
 While an address or public key lookup is active, the app also subscribes to that target over the same WebSocket so address-specific mempool events spawn purple blocks (and still trigger transaction sounds).
 
@@ -129,24 +130,35 @@ The application is a static single-page interface made of plain HTML, CSS, and J
 ```
 ┌─────────────┐     user input      ┌──────────────────┐
 │  index.html │ ──────────────────► │     app.js       │
-│  styles.css │                     │  (orchestration) │
+│  styles.css │                     │ init + events    │
 └─────────────┘                     └────────┬─────────┘
                                              │
-              ┌──────────────────────────────┼──────────────────────────────────────────────────────┐
-              ▼              ▼               ▼               ▼              ▼         ▼       ▼      ▼
-      ┌──────────────┐ ┌──────────┐  ┌──────────────┐ ┌──────────┐  ┌──────────┐ ┌────────┐ ┌──────────┐ ┌────────────┐
-      │pubkey-utils  │ │tx-utils  │  │ mempool.space│ │sounds.js │  │blocks-fx │ │ qrcode │ │ CoinGecko│ │ CoinMetrics│
-      │.js           │ │.js       │  │ REST + WS    │ │          │  │.js       │ │ (CDN)  │ │          │ │            │
-      └──────────────┘ └──────────┘  └──────────────┘ └──────────┘  └──────────┘ └────────┘ └──────────┘ └────────────┘
-                                              ▲
-                                         ┌──────────┐
-                                         │  i18n.js │
-                                         └──────────┘
+                    ┌────────────────────────┼────────────────────────┐
+                    ▼                        ▼                        ▼
+             ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+             │  lookup.js  │          │chain-stats  │          │ blocks-fx   │
+             │ route input │          │    .js      │          │    .js      │
+             └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
+                    │                        │                        │
+         ┌──────────┴──────────┐             │                        │
+         ▼                     ▼             ▼                        ▼
+  ┌──────────────┐      ┌──────────────┐  ┌──────────────┐      ┌──────────────┐
+  │address-lookup│      │  tx-lookup   │  │ api-client   │◄─────│ mempool WS   │
+  │     .js      │      │     .js      │  │     .js      │      │ + REST APIs  │
+  └──────────────┘      └──────────────┘  └──────────────┘      └──────────────┘
+         │                     │                  ▲
+         └──────────┬──────────┘                  │
+                    ▼                             │
+    ┌─────────────────────────────────────────────┴──────────────────┐
+    │ dom.js · state.js · format.js · btc.js · prices.js · ui.js     │
+    │ balance-sub.js · tx-sounds.js · qr.js · pubkey-utils.js        │
+    │ tx-utils.js · i18n.js · sounds.js                              │
+    └────────────────────────────────────────────────────────────────┘
 ```
 
 ### Lookup flow
 
-When the user clicks **Check**, `app.js` classifies the input and routes to the correct flow:
+When the user clicks **Check**, `lookup.js` classifies the input and routes to the correct flow:
 
 **Address / public key**
 
@@ -237,7 +249,7 @@ Timers keep the UI fresh after a successful lookup:
 
 | Timer | Interval | Purpose |
 |---|---|---|
-| Auto-refresh | 10 s | Silently re-fetches address or transaction data from mempool.space |
+| Auto-refresh | 10 s | Silently re-fetches address or transaction data (with API fallbacks) |
 | Block height & price | 10 s | Updates chain tip, difficulty/halving countdown, supply, hashrate, network difficulty, and BTC spot price in the logo tooltip |
 | Market metrics | 1 h | Refreshes Mayer Multiple, MVRV Ratio, and Fear & Greed Index |
 | Time since last transaction | 1 s | Updates the human-readable elapsed time counter (address lookup) |
@@ -347,12 +359,26 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 |---|---|
 | `index.html` | Page structure, navigation bar, unified search form, address/transaction result panels, QR overlay |
 | `styles.css` | Dark-themed styling, unconfirmed status blink animation |
-| `app.js` | API calls, address/transaction routing, balance logic, live timers, sound triggers, UI updates |
+| `app.js` | Thin orchestrator — initializes background refresh and binds UI events |
+| `api-client.js` | Mempool API client with 5 s timeout and multi-provider fallbacks |
+| `dom.js` | DOM element references (`AppDom`) |
+| `state.js` | Shared constants (`AppConstants`) and mutable app state (`AppState`) |
+| `format.js` | Date/time, BTC, fiat, and number formatting helpers |
+| `btc.js` | Balance math, address types, supply calculations, unconfirmed helpers |
+| `prices.js` | Fiat price fetching and caching |
+| `ui.js` | Error display, timers, and responsive text fitting |
+| `balance-sub.js` | Fiat / unconfirmed subtitle cycling with fade transition |
+| `tx-sounds.js` | Transaction sound detection for address and tx lookups |
+| `address-lookup.js` | Address/pubkey data loading, rendering, and auto-refresh |
+| `tx-lookup.js` | Transaction data loading, rendering, and auto-refresh |
+| `lookup.js` | Input routing — address/pubkey vs transaction ID |
+| `qr.js` | QR code overlay generation |
+| `chain-stats.js` | Block height, mining stats, market metrics, logo tooltip |
 | `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
 | `tx-utils.js` | Txid validation, embedded-data detection (OP_RETURN, inscriptions, runes, BRC-20, images) |
 | `i18n.js` | English / Brazilian Portuguese translations and language picker |
 | `sounds.js` | Web Audio transaction alert sounds and mute toggle |
-| `blocks-fx.js` | Mempool WebSocket, falling-block animation, fee-based and address-specific block colors |
+| `blocks-fx.js` | Mempool WebSocket (with mirror rotation), falling-block animation, fee-based colors |
 | `favicon.svg` | Bitcoin logo favicon |
 
 ## External dependencies
@@ -360,14 +386,42 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 | Dependency | Loaded from | Used for |
 |---|---|---|
 | [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr CDN | QR code generation |
-| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` | On-chain data, block height, mining stats, and USD prices |
-| [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` | Live global mempool and watched-address transaction events |
-| [CoinGecko API](https://www.coingecko.com/en/api) | `api.coingecko.com` | BRL spot price and Mayer Multiple fallback (200-day SMA) |
+| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` (+ mirrors) | Primary on-chain data, block height, mining stats, and USD prices |
+| [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live global mempool and watched-address transaction events |
+| [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | `blockstream.info` | Fallback for address, tx, scripthash, and block-height endpoints |
+| [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | `blockchain.info` | Fallback for network hashrate and difficulty |
+| [CoinGecko API](https://www.coingecko.com/en/api) | `api.coingecko.com` | BRL spot price, USD price fallback, Mayer Multiple fallback (200-day SMA) |
 | [CoinMetrics Community API](https://community-api.coinmetrics.io/) | `community-api.coinmetrics.io` | MVRV Ratio fallback (`CapMVRVCur`) |
 | [bitcoin-data.com API](https://bitcoin-data.com/) | `bitcoin-data.com` | Primary Mayer Multiple and MVRV data (rate-limited) |
 | [Alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | `api.alternative.me` | Crypto Fear & Greed Index |
 | Web Crypto API | Browser built-in | SHA-256 for scripthash calculation |
 | Web Audio API | Browser built-in | Transaction alert sounds |
+
+### API fallbacks (`api-client.js`)
+
+Every mempool.space REST call goes through `api-client.js`, which enforces a **5-second timeout** per provider. If a request fails or times out, the next provider is tried automatically.
+
+**REST provider chain (in order):**
+
+1. mempool.space
+2. mempool.emzy.de
+3. mempool.haus
+4. mempool.jhoenicke.de
+5. mempool.ninja
+6. blockstream.info *(Esplora-compatible endpoints)*
+
+**WebSocket mirrors** rotate on disconnect or a 5-second connect timeout: mempool.space → emzy.de → haus → jhoenicke.de → ninja.
+
+**Endpoint-specific fallbacks:**
+
+| Endpoint | Primary | Fallback |
+|---|---|---|
+| Address / tx / scripthash / block height | Mempool provider chain | Blockstream Esplora |
+| `/v1/prices` (USD) | Mempool provider chain | CoinGecko |
+| `/v1/mining/hashrate/3d` | Mempool provider chain | blockchain.info |
+| `/v1/transaction-times` | Mempool provider chain | Block audit endpoint (confirmed txs) |
+| `/mempool/recent` | Mempool provider chain | — |
+| WebSocket live events | Mempool WS mirrors | REST poll every 2.5 s |
 
 ### Market metrics fallbacks
 

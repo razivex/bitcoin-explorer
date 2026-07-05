@@ -1,0 +1,57 @@
+window.AppConstants = {
+  SATS_PER_BTC: 100_000_000,
+  UPDATE_INTERVAL_MS: 10000,
+  BALANCE_SUB_FADE_MS: 600,
+  DIFFICULTY_ADJUSTMENT_INTERVAL: 2016,
+  HALVING_INTERVAL: 210_000,
+  BALANCE_BTC_MAX_FONT_PX: 32,
+  BALANCE_BTC_MIN_FONT_PX: 11,
+};
+
+window.AppState = {
+  timeSinceLastInterval: null,
+  txTimeSinceConfirmationInterval: null,
+  txAutoRefreshInterval: null,
+  balanceSubInterval: null,
+  autoRefreshInterval: null,
+  refreshInFlight: false,
+  lookupGeneration: 0,
+  txLookupGeneration: 0,
+  currentLookupInput: null,
+  currentTxLookup: null,
+  lastAppliedTxData: null,
+  lastTxTimestamp: null,
+  cachedPrices: {},
+  balanceSubState: {
+    hasUnconfirmed: false,
+    showingUsd: true,
+    usdText: "",
+    unconfirmedText: "",
+    arrowUp: false,
+    arrowDown: false,
+  },
+  txWatchState: {
+    initialized: false,
+    chainTxCount: 0,
+    mempoolTxCount: 0,
+    lastConfirmedTxId: null,
+  },
+  txConfirmationWatchState: {
+    initialized: false,
+    confirmed: false,
+  },
+  lastAppliedData: null,
+  cachedBlockHeight: null,
+  cachedMiningStats: {
+    hashrate: null,
+    difficulty: null,
+  },
+  blockHeightInterval: null,
+  marketMetricsInterval: null,
+  cachedMarketMetrics: {
+    mayerMultiple: null,
+    mvrv: null,
+    fearGreed: null,
+    fearGreedLabel: null,
+  },
+};

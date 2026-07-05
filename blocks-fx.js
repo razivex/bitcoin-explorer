@@ -1,5 +1,3 @@
-const MEMPOOL_WS_URL = "wss://mempool.space/api/v1/ws";
-const MEMPOOL_RECENT_URL = "https://mempool.space/api/mempool/recent";
 const RECENT_POLL_MS = 2500;
 const WS_RECONNECT_MS = 4000;
 const MAX_CONCURRENT_BLOCKS = 36;
@@ -20,6 +18,8 @@ const MEMPOOL_FEE_COLORS = [
 ];
 
 let mempoolSocket = null;
+let wsProviderIndex = 0;
+let wsConnectTimer = null;
 let reconnectTimer = null;
 let recentPollTimer = null;
 let spawnLoopTimer = null;
@@ -438,12 +438,27 @@ function handleSocketMessage(message) {
   }
 }
 
+function getCurrentWsUrl() {
+  const providers = getMempoolWsProviders();
+  return providers[wsProviderIndex % providers.length];
+}
+
+function rotateWsProvider() {
+  const providers = getMempoolWsProviders();
+  if (providers.length === 0) return;
+  wsProviderIndex = (wsProviderIndex + 1) % providers.length;
+}
+
+function clearWsConnectTimer() {
+  if (wsConnectTimer !== null) {
+    window.clearTimeout(wsConnectTimer);
+    wsConnectTimer = null;
+  }
+}
+
 async function pollMempoolRecent() {
   try {
-    const response = await fetch(MEMPOOL_RECENT_URL);
-    if (!response.ok) return;
-
-    const recent = await response.json();
+    const recent = await fetchMempoolRecent();
     if (!Array.isArray(recent)) return;
 
     if (!recentPollInitialized) {
@@ -467,30 +482,47 @@ function startRecentPollFallback() {
   recentPollTimer = window.setInterval(pollMempoolRecent, RECENT_POLL_MS);
 }
 
-function scheduleReconnect() {
+function scheduleReconnect({ rotateProvider = true } = {}) {
   if (reconnectTimer !== null) return;
 
   reconnectTimer = window.setTimeout(() => {
     reconnectTimer = null;
+    if (rotateProvider) {
+      rotateWsProvider();
+    }
     connectMempoolWebSocket();
   }, WS_RECONNECT_MS);
 }
 
 function connectMempoolWebSocket() {
+  clearWsConnectTimer();
+
   if (mempoolSocket) {
     mempoolSocket.close();
     mempoolSocket = null;
   }
 
+  const wsUrl = getCurrentWsUrl();
+
   try {
-    mempoolSocket = new WebSocket(MEMPOOL_WS_URL);
+    mempoolSocket = new WebSocket(wsUrl);
   } catch (err) {
     console.error(err);
-    scheduleReconnect();
+    rotateWsProvider();
+    scheduleReconnect({ rotateProvider: false });
     return;
   }
 
+  wsConnectTimer = window.setTimeout(() => {
+    if (mempoolSocket?.readyState !== WebSocket.OPEN) {
+      mempoolSocket?.close();
+      rotateWsProvider();
+      scheduleReconnect({ rotateProvider: false });
+    }
+  }, WS_CONNECT_TIMEOUT_MS);
+
   mempoolSocket.addEventListener("open", () => {
+    clearWsConnectTimer();
     mempoolSocket.send(JSON.stringify({ action: "init" }));
     mempoolSocket.send(JSON.stringify({ "track-mempool": true }));
     sendWatchSubscription();
@@ -503,6 +535,7 @@ function connectMempoolWebSocket() {
   });
 
   mempoolSocket.addEventListener("close", () => {
+    clearWsConnectTimer();
     mempoolSocket = null;
     scheduleReconnect();
   });
