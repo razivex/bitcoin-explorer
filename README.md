@@ -275,9 +275,24 @@ While the file is generated, a blurred overlay shows the current step, a progres
 
 **Export phases:**
 
-1. Fetch confirmed transactions from the chain (`/txs/chain`, paginated)
+1. Fetch confirmed transactions from the chain (`/txs/chain`, paginated in batches of 25)
 2. Fetch mempool first-seen timestamps for each transaction (with block-audit fallback for older txs)
 3. Build the spreadsheet and download
+
+**Large exports (resilience):**
+
+Large address histories can require hundreds of API requests. Export is built to survive transient failures without starting over:
+
+| Mechanism | Behavior |
+|---|---|
+| **Per-batch retry** | Each paginated fetch and timestamp batch retries up to 10 times with exponential backoff |
+| **Resume on retry** | Already-fetched transactions stay in memory; a failed batch retries from the same pagination cursor |
+| **Rate-limit backoff** | HTTP 429/502/503 responses use a longer initial delay before retry |
+| **Batch pacing** | 300 ms pause between successful batches to reduce provider rate limiting |
+| **Export timeout** | Export requests use a 20 s per-provider timeout (vs 5 s for normal lookups) |
+| **Graceful fallback** | If an individual first-seen lookup still fails after retries, that row exports with `N/A` instead of aborting the whole file |
+
+While retrying, the overlay shows *"Connection issue, retrying…"* with the attempt number and how many transactions have been kept so far.
 
 **Transactions sheet** — one row per confirmed transaction:
 
@@ -395,7 +410,7 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 | `index.html` | Page structure, navigation bar, unified search form, address/transaction result panels, action menu, QR overlay, export progress overlay |
 | `styles.css` | Dark-themed styling, unconfirmed status blink animation |
 | `app.js` | Thin orchestrator — initializes background refresh and binds UI events |
-| `api-client.js` | Mempool API client with 5 s timeout and multi-provider fallbacks |
+| `api-client.js` | Mempool API client with 5 s timeout (20 s for export), multi-provider fallbacks |
 | `dom.js` | DOM element references (`AppDom`) |
 | `state.js` | Shared constants (`AppConstants`) and mutable app state (`AppState`) |
 | `format.js` | Date/time, BTC, fiat, and number formatting helpers |
@@ -409,7 +424,7 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 | `lookup.js` | Input routing — address/pubkey vs transaction ID |
 | `qr.js` | QR code overlay generation |
 | `action-menu.js` | ⋯ menu with QR and export options |
-| `tx-export.js` | Confirmed transaction export to Excel (ExcelJS) |
+| `tx-export.js` | Confirmed transaction export to Excel (ExcelJS), with retry/resume for large histories |
 | `chain-stats.js` | Block height, mining stats, market metrics, logo tooltip |
 | `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
 | `tx-utils.js` | Txid validation, embedded-data detection (OP_RETURN, inscriptions, runes, BRC-20, images) |
@@ -437,7 +452,7 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 
 ### API fallbacks (`api-client.js`)
 
-Every mempool.space REST call goes through `api-client.js`, which enforces a **5-second timeout** per provider. If a request fails or times out, the next provider is tried automatically.
+Every mempool.space REST call goes through `api-client.js`, which enforces a **5-second timeout** per provider (20 seconds during Excel export). If a request fails or times out, the next provider is tried automatically. Export additionally retries failed batches with exponential backoff and resumes from the last successful page instead of restarting the fetch.
 
 **REST provider chain (in order):**
 

@@ -31,6 +31,10 @@ const translations = {
     exportGenerating: "Generating file...",
     exportPhaseFetchingTxs: "Fetching transactions...",
     exportProgressTxs: "Transactions: {done} / {total}",
+    exportPhaseRetrying: "Connection issue, retrying...",
+    exportProgressRetry: "Attempt {attempt} of {maxRetries} — {done} transactions kept",
+    exportProgressRetryTimes:
+      "Attempt {attempt} of {maxRetries} — timestamps: {done} / {total}",
     exportPhaseFetchingTimes: "Fetching mempool timestamps...",
     exportProgressTimes: "Timestamps: {done} / {total}",
     exportProgressBuilding: "Rows: {done} / {total}",
@@ -154,6 +158,11 @@ const translations = {
     exportGenerating: "Gerando arquivo...",
     exportPhaseFetchingTxs: "Buscando transações...",
     exportProgressTxs: "Transações: {done} / {total}",
+    exportPhaseRetrying: "Problema de conexão, tentando novamente...",
+    exportProgressRetry:
+      "Tentativa {attempt} de {maxRetries} — {done} transações mantidas",
+    exportProgressRetryTimes:
+      "Tentativa {attempt} de {maxRetries} — timestamps: {done} / {total}",
     exportPhaseFetchingTimes: "Buscando timestamps do mempool...",
     exportProgressTimes: "Timestamps: {done} / {total}",
     exportProgressBuilding: "Linhas: {done} / {total}",

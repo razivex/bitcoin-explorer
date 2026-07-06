@@ -70,9 +70,13 @@ async function tryProviders(providers, tryFn, label = "API") {
   throw lastError || new Error(`${label}: all providers failed`);
 }
 
-async function fetchFromProvider(base, path, { parse = "json", validate } = {}) {
+async function fetchFromProvider(
+  base,
+  path,
+  { parse = "json", validate, timeoutMs } = {},
+) {
   const url = path.startsWith("http") ? path : `${base}${path}`;
-  const response = await fetchWithTimeout(url);
+  const response = await fetchWithTimeout(url, {}, timeoutMs);
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
@@ -90,11 +94,11 @@ async function fetchFromProvider(base, path, { parse = "json", validate } = {}) 
 
 async function fetchMempoolJson(path, options = {}) {
   const providers = options.providers || CHAIN_API_PROVIDERS;
-  const { parse = "json", validate } = options;
+  const { parse = "json", validate, timeoutMs } = options;
 
   return tryProviders(
     providers,
-    (base) => fetchFromProvider(base, path, { parse, validate }),
+    (base) => fetchFromProvider(base, path, { parse, validate, timeoutMs }),
     "mempool API",
   );
 }

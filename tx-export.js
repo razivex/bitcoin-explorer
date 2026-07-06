@@ -1,5 +1,52 @@
 const EXPORT_TX_BATCH_SIZE = 25;
 const EXPORT_FIRST_SEEN_BATCH_SIZE = 50;
+const EXPORT_FETCH_TIMEOUT_MS = 20000;
+const EXPORT_FETCH_MAX_RETRIES = 10;
+const EXPORT_FETCH_RETRY_BASE_MS = 1500;
+const EXPORT_FETCH_BATCH_DELAY_MS = 300;
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function getExportRetryDelayMs(attempt, err) {
+  const message = String(err?.message || err || "");
+  const isRateLimited =
+    message.includes("429") ||
+    message.includes("503") ||
+    message.includes("502") ||
+    message.toLowerCase().includes("rate");
+  const base = isRateLimited
+    ? EXPORT_FETCH_RETRY_BASE_MS * 4
+    : EXPORT_FETCH_RETRY_BASE_MS;
+  return base * 2 ** attempt;
+}
+
+async function fetchWithExportRetry(
+  task,
+  { label = "export fetch", onRetry, maxRetries = EXPORT_FETCH_MAX_RETRIES } = {},
+) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      return await task();
+    } catch (err) {
+      lastError = err;
+      if (attempt >= maxRetries) break;
+
+      const delayMs = getExportRetryDelayMs(attempt, err);
+      onRetry?.(attempt + 1, maxRetries, delayMs, err);
+      console.warn(
+        `[tx-export] ${label} failed (attempt ${attempt + 1}/${maxRetries}), retrying in ${delayMs}ms:`,
+        err,
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
 
 function getExportColumns() {
   return [
@@ -109,7 +156,7 @@ function setExportProgress(percent, phaseText, detailText = "") {
   }
 }
 
-async function fetchAllChainTxs(apiBasePath, queryKey, onBatchLoaded) {
+async function fetchAllChainTxs(apiBasePath, queryKey, onBatchLoaded, onRetry) {
   const encodedQueryKey = encodeURIComponent(queryKey);
   const allTxs = [];
   let lastTxid = null;
@@ -119,15 +166,39 @@ async function fetchAllChainTxs(apiBasePath, queryKey, onBatchLoaded) {
       ? `/${apiBasePath}/${encodedQueryKey}/txs/chain/${encodeURIComponent(lastTxid)}`
       : `/${apiBasePath}/${encodedQueryKey}/txs/chain`;
 
-    const batch = await fetchMempoolJson(path);
+    const batch = await fetchWithExportRetry(
+      () =>
+        fetchMempoolJson(path, {
+          timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
+        }),
+      {
+        label: "chain transactions",
+        onRetry: (attempt, maxRetries, delayMs, err) => {
+          onRetry?.({
+            attempt,
+            maxRetries,
+            delayMs,
+            loadedCount: allTxs.length,
+            err,
+          });
+        },
+      },
+    );
+
     if (!Array.isArray(batch) || batch.length === 0) break;
 
-    allTxs.push(...batch);
+    for (const tx of batch) {
+      allTxs.push(tx);
+    }
     onBatchLoaded?.(allTxs.length);
 
     if (batch.length < EXPORT_TX_BATCH_SIZE) break;
     lastTxid = batch[batch.length - 1]?.txid;
     if (!lastTxid) break;
+
+    if (EXPORT_FETCH_BATCH_DELAY_MS > 0) {
+      await sleep(EXPORT_FETCH_BATCH_DELAY_MS);
+    }
   }
 
   return allTxs;
@@ -140,29 +211,46 @@ async function fetchMempoolTransactionTimesBatch(txids) {
     .map((txid) => `txId[]=${encodeURIComponent(txid)}`)
     .join("&");
 
-  const data = await fetchMempoolOnlyJson(`/v1/transaction-times?${query}`, {
+  return fetchMempoolOnlyJson(`/v1/transaction-times?${query}`, {
     validate: (payload) => Array.isArray(payload),
+    timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
   });
-
-  return data;
 }
 
-async function fetchFirstSeenMap(allTxs, onProgress) {
+async function fetchFirstSeenMap(allTxs, onProgress, onRetry) {
   const firstSeenMap = new Map();
   const txids = allTxs.map((tx) => tx.txid);
 
   for (let index = 0; index < txids.length; index += EXPORT_FIRST_SEEN_BATCH_SIZE) {
     const batch = txids.slice(index, index + EXPORT_FIRST_SEEN_BATCH_SIZE);
-    try {
-      const timestamps = await fetchMempoolTransactionTimesBatch(batch);
-      batch.forEach((txid, batchIndex) => {
-        const timestamp = Number(timestamps[batchIndex]);
-        if (Number.isFinite(timestamp) && timestamp > 0) {
-          firstSeenMap.set(txid, timestamp);
-        }
-      });
-    } catch (err) {
-      console.warn("[tx-export] first-seen batch failed:", err);
+    const timestamps = await fetchWithExportRetry(
+      () => fetchMempoolTransactionTimesBatch(batch),
+      {
+        label: "first-seen batch",
+        onRetry: (attempt, maxRetries, delayMs, err) => {
+          onRetry?.({
+            attempt,
+            maxRetries,
+            delayMs,
+            resolvedCount: firstSeenMap.size,
+            total: allTxs.length,
+            err,
+          });
+        },
+      },
+    );
+
+    batch.forEach((txid, batchIndex) => {
+      const timestamp = Number(timestamps[batchIndex]);
+      if (Number.isFinite(timestamp) && timestamp > 0) {
+        firstSeenMap.set(txid, timestamp);
+      }
+    });
+
+    onProgress?.(firstSeenMap.size, allTxs.length);
+
+    if (EXPORT_FETCH_BATCH_DELAY_MS > 0) {
+      await sleep(EXPORT_FETCH_BATCH_DELAY_MS);
     }
   }
 
@@ -171,7 +259,14 @@ async function fetchFirstSeenMap(allTxs, onProgress) {
   onProgress?.(resolved, allTxs.length);
 
   for (const tx of missingTxs) {
-    const timestamp = await fetchTxFirstSeen(tx.txid, tx);
+    const timestamp = await fetchWithExportRetry(
+      () => fetchTxFirstSeen(tx.txid, tx),
+      { label: `first-seen ${tx.txid}` },
+    ).catch((err) => {
+      console.warn("[tx-export] first-seen fallback failed:", err);
+      return null;
+    });
+
     if (Number.isFinite(timestamp) && timestamp > 0) {
       firstSeenMap.set(tx.txid, timestamp);
     }
@@ -381,6 +476,17 @@ async function exportAddressTransactions() {
           }),
         );
       },
+      ({ attempt, maxRetries, loadedCount }) => {
+        setExportProgress(
+          4 + Math.min(26, (Math.min(loadedCount, progressTotal) / progressTotal) * 26),
+          t("exportPhaseRetrying"),
+          t("exportProgressRetry", {
+            attempt,
+            maxRetries,
+            done: loadedCount,
+          }),
+        );
+      },
     );
 
     const allTxs = (chainTxs || []).filter(
@@ -406,14 +512,30 @@ async function exportAddressTransactions() {
       t("exportProgressTimes", { done: 0, total: txTotal }),
     );
 
-    const firstSeenMap = await fetchFirstSeenMap(allTxs, (done, total) => {
-      const pct = 32 + ((done / total) * 52);
-      setExportProgress(
-        pct,
-        t("exportPhaseFetchingTimes"),
-        t("exportProgressTimes", { done, total }),
-      );
-    });
+    const firstSeenMap = await fetchFirstSeenMap(
+      allTxs,
+      (done, total) => {
+        const pct = 32 + ((done / total) * 52);
+        setExportProgress(
+          pct,
+          t("exportPhaseFetchingTimes"),
+          t("exportProgressTimes", { done, total }),
+        );
+      },
+      ({ attempt, maxRetries, resolvedCount, total }) => {
+        const pct = 32 + ((resolvedCount / total) * 52);
+        setExportProgress(
+          pct,
+          t("exportPhaseRetrying"),
+          t("exportProgressRetryTimes", {
+            attempt,
+            maxRetries,
+            done: resolvedCount,
+            total,
+          }),
+        );
+      },
+    );
 
     const rows = allTxs.map((tx) =>
       buildTransactionRow(tx, watchTarget, firstSeenMap.get(tx.txid)),
