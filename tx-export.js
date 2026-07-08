@@ -1,5 +1,4 @@
 const EXPORT_TX_BATCH_SIZE = 25;
-const EXPORT_FIRST_SEEN_BATCH_SIZE = 50;
 const EXPORT_FETCH_TIMEOUT_MS = 20000;
 const EXPORT_FETCH_MAX_RETRIES = 10;
 const EXPORT_FETCH_RETRY_BASE_MS = 1500;
@@ -51,9 +50,7 @@ async function fetchWithExportRetry(
 function getExportColumns() {
   return [
     t("exportColTxId"),
-    t("exportColMempoolTs"),
     t("exportColConfirmedTs"),
-    t("exportColConfirmationTime"),
     t("exportColType"),
     t("exportColAmount"),
     t("exportColFee"),
@@ -129,6 +126,53 @@ function hideExportOverlay() {
   setExportProgress(0, "", "");
 }
 
+async function createExportSnapshot(txCount) {
+  let blockHeight = Number(AppState.cachedBlockHeight);
+
+  try {
+    const heightText = await fetchMempoolText("/blocks/tip/height", {
+      validate: (value) => /^\d+$/.test(value),
+      timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
+    });
+    blockHeight = Number(heightText);
+  } catch (err) {
+    console.warn(
+      "[tx-export] could not refresh block height for snapshot, using cached:",
+      err,
+    );
+  }
+
+  return {
+    blockHeight: Number.isFinite(blockHeight) ? blockHeight : null,
+    blockTimeSec: Math.floor(Date.now() / 1000),
+    txCount: Math.max(0, Number(txCount) || 0),
+  };
+}
+
+function isTxWithinExportSnapshot(tx, snapshot) {
+  if (!tx?.txid || !tx?.status?.confirmed) return false;
+
+  const blockHeight = Number(tx.status.block_height);
+  if (
+    snapshot.blockHeight != null &&
+    Number.isFinite(blockHeight) &&
+    blockHeight > snapshot.blockHeight
+  ) {
+    return false;
+  }
+
+  const blockTime = Number(tx.status.block_time);
+  if (
+    snapshot.blockTimeSec != null &&
+    Number.isFinite(blockTime) &&
+    blockTime > snapshot.blockTimeSec
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function setExportProgress(percent, phaseText, detailText = "") {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
   const percentLabel = `${clamped}%`;
@@ -156,12 +200,22 @@ function setExportProgress(percent, phaseText, detailText = "") {
   }
 }
 
-async function fetchAllChainTxs(apiBasePath, queryKey, onBatchLoaded, onRetry) {
+async function fetchAllChainTxs(
+  apiBasePath,
+  queryKey,
+  snapshot,
+  onBatchLoaded,
+  onRetry,
+) {
   const encodedQueryKey = encodeURIComponent(queryKey);
+  const seenTxids = new Set();
   const allTxs = [];
   let lastTxid = null;
+  const maxCount = snapshot?.txCount;
 
   while (true) {
+    if (maxCount != null && allTxs.length >= maxCount) break;
+
     const path = lastTxid
       ? `/${apiBasePath}/${encodedQueryKey}/txs/chain/${encodeURIComponent(lastTxid)}`
       : `/${apiBasePath}/${encodedQueryKey}/txs/chain`;
@@ -188,10 +242,16 @@ async function fetchAllChainTxs(apiBasePath, queryKey, onBatchLoaded, onRetry) {
     if (!Array.isArray(batch) || batch.length === 0) break;
 
     for (const tx of batch) {
+      if (maxCount != null && allTxs.length >= maxCount) break;
+      if (!tx?.txid || seenTxids.has(tx.txid)) continue;
+      if (!isTxWithinExportSnapshot(tx, snapshot)) continue;
+
+      seenTxids.add(tx.txid);
       allTxs.push(tx);
     }
     onBatchLoaded?.(allTxs.length);
 
+    if (maxCount != null && allTxs.length >= maxCount) break;
     if (batch.length < EXPORT_TX_BATCH_SIZE) break;
     lastTxid = batch[batch.length - 1]?.txid;
     if (!lastTxid) break;
@@ -204,90 +264,12 @@ async function fetchAllChainTxs(apiBasePath, queryKey, onBatchLoaded, onRetry) {
   return allTxs;
 }
 
-async function fetchMempoolTransactionTimesBatch(txids) {
-  if (!txids.length) return [];
-
-  const query = txids
-    .map((txid) => `txId[]=${encodeURIComponent(txid)}`)
-    .join("&");
-
-  return fetchMempoolOnlyJson(`/v1/transaction-times?${query}`, {
-    validate: (payload) => Array.isArray(payload),
-    timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
-  });
-}
-
-async function fetchFirstSeenMap(allTxs, onProgress, onRetry) {
-  const firstSeenMap = new Map();
-  const txids = allTxs.map((tx) => tx.txid);
-
-  for (let index = 0; index < txids.length; index += EXPORT_FIRST_SEEN_BATCH_SIZE) {
-    const batch = txids.slice(index, index + EXPORT_FIRST_SEEN_BATCH_SIZE);
-    const timestamps = await fetchWithExportRetry(
-      () => fetchMempoolTransactionTimesBatch(batch),
-      {
-        label: "first-seen batch",
-        onRetry: (attempt, maxRetries, delayMs, err) => {
-          onRetry?.({
-            attempt,
-            maxRetries,
-            delayMs,
-            resolvedCount: firstSeenMap.size,
-            total: allTxs.length,
-            err,
-          });
-        },
-      },
-    );
-
-    batch.forEach((txid, batchIndex) => {
-      const timestamp = Number(timestamps[batchIndex]);
-      if (Number.isFinite(timestamp) && timestamp > 0) {
-        firstSeenMap.set(txid, timestamp);
-      }
-    });
-
-    onProgress?.(firstSeenMap.size, allTxs.length);
-
-    if (EXPORT_FETCH_BATCH_DELAY_MS > 0) {
-      await sleep(EXPORT_FETCH_BATCH_DELAY_MS);
-    }
-  }
-
-  const missingTxs = allTxs.filter((tx) => !firstSeenMap.has(tx.txid));
-  let resolved = allTxs.length - missingTxs.length;
-  onProgress?.(resolved, allTxs.length);
-
-  for (const tx of missingTxs) {
-    const timestamp = await fetchWithExportRetry(
-      () => fetchTxFirstSeen(tx.txid, tx),
-      { label: `first-seen ${tx.txid}` },
-    ).catch((err) => {
-      console.warn("[tx-export] first-seen fallback failed:", err);
-      return null;
-    });
-
-    if (Number.isFinite(timestamp) && timestamp > 0) {
-      firstSeenMap.set(tx.txid, timestamp);
-    }
-
-    resolved += 1;
-    onProgress?.(resolved, allTxs.length);
-  }
-
-  return firstSeenMap;
-}
-
-function buildTransactionRow(tx, watchTarget, firstSeenTs) {
+function buildTransactionRow(tx, watchTarget) {
   const confirmed = Boolean(tx?.status?.confirmed);
   const netSats = calcAddressNetSats(tx, watchTarget);
   const type = netSats >= 0 ? t("exportTypeReceived") : t("exportTypeSent");
   const feeSats = Number(tx?.fee);
   const blockTime = confirmed ? Number(tx.status.block_time) : null;
-  const firstSeenDate =
-    Number.isFinite(firstSeenTs) && firstSeenTs > 0
-      ? new Date(firstSeenTs * 1000)
-      : null;
   const confirmedDate =
     confirmed && Number.isFinite(blockTime) && blockTime > 0
       ? new Date(blockTime * 1000)
@@ -295,11 +277,7 @@ function buildTransactionRow(tx, watchTarget, firstSeenTs) {
 
   return [
     tx.txid,
-    firstSeenDate ? formatUtcDateTime(firstSeenDate) : t("na"),
     confirmedDate ? formatUtcDateTime(confirmedDate) : t("na"),
-    confirmed
-      ? formatTimeFromFirstSeenToConfirmed(firstSeenDate, confirmedDate)
-      : t("na"),
     type,
     satsToBtc(netSats),
     Number.isFinite(feeSats) ? satsToBtc(feeSats) : "",
@@ -337,12 +315,12 @@ async function buildExportWorkbook(rows, summary) {
   const lastRow = rows.length + 1;
   if (lastRow > 1) {
     txSheet.addConditionalFormatting({
-      ref: `E2:E${lastRow}`,
+      ref: `C2:C${lastRow}`,
       rules: [
         {
           type: "expression",
           priority: 1,
-          formulae: [`=$E2="${receivedLabel}"`],
+          formulae: [`=$C2="${receivedLabel}"`],
           style: {
             fill: {
               type: "pattern",
@@ -354,7 +332,7 @@ async function buildExportWorkbook(rows, summary) {
         {
           type: "expression",
           priority: 2,
-          formulae: [`=$E2="${sentLabel}"`],
+          formulae: [`=$C2="${sentLabel}"`],
           style: {
             fill: {
               type: "pattern",
@@ -370,8 +348,6 @@ async function buildExportWorkbook(rows, summary) {
   txSheet.columns = [
     { width: 68 },
     { width: 24 },
-    { width: 24 },
-    { width: 22 },
     { width: 12 },
     { width: 16 },
     { width: 14 },
@@ -381,8 +357,8 @@ async function buildExportWorkbook(rows, summary) {
   ];
 
   for (let rowIndex = 2; rowIndex <= lastRow; rowIndex += 1) {
-    txSheet.getCell(`F${rowIndex}`).numFmt = "0.00000000";
-    txSheet.getCell(`G${rowIndex}`).numFmt = "0.00000000";
+    txSheet.getCell(`D${rowIndex}`).numFmt = "0.00000000";
+    txSheet.getCell(`E${rowIndex}`).numFmt = "0.00000000";
   }
 
   const summarySheet = workbook.addWorksheet(t("exportSheetSummary"));
@@ -407,6 +383,15 @@ async function buildExportWorkbook(rows, summary) {
   summarySheet.getCell("B3").numFmt = "0.00000000";
   summarySheet.getCell("B4").numFmt = "0.00000000";
   summarySheet.getCell("B5").numFmt = "0.00000000";
+
+  summarySheet.addRow([]);
+  const noteRowNumber = summarySheet.lastRow.number + 1;
+  summarySheet.addRow([t("exportSummaryNote")]);
+  summarySheet.mergeCells(`A${noteRowNumber}:B${noteRowNumber}`);
+  const noteCell = summarySheet.getCell(`A${noteRowNumber}`);
+  noteCell.alignment = { wrapText: true, vertical: "top" };
+  noteCell.font = { italic: true, size: 10 };
+  summarySheet.getRow(noteRowNumber).height = 72;
 
   return workbook;
 }
@@ -452,7 +437,9 @@ async function exportAddressTransactions() {
     const applied = AppState.lastAppliedData;
     const watchTarget = applied.watchTarget;
     const apiBasePath = watchTarget.mode === "pubkey" ? "scripthash" : "address";
-    const totalTxCount = Number(applied.txCount) || 0;
+
+    const snapshot = await createExportSnapshot(applied.txCount);
+    const totalTxCount = snapshot.txCount;
     const progressTotal = Math.max(totalTxCount, 1);
 
     setExportProgress(
@@ -461,12 +448,13 @@ async function exportAddressTransactions() {
       t("exportProgressTxs", { done: 0, total: totalTxCount }),
     );
 
-    const chainTxs = await fetchAllChainTxs(
+    const allTxs = await fetchAllChainTxs(
       apiBasePath,
       watchTarget.queryKey,
+      snapshot,
       (loadedCount) => {
         const done = Math.min(loadedCount, progressTotal);
-        const pct = 4 + Math.min(26, (done / progressTotal) * 26);
+        const pct = 4 + Math.min(80, (done / progressTotal) * 80);
         setExportProgress(
           pct,
           t("exportPhaseFetchingTxs"),
@@ -478,7 +466,7 @@ async function exportAddressTransactions() {
       },
       ({ attempt, maxRetries, loadedCount }) => {
         setExportProgress(
-          4 + Math.min(26, (Math.min(loadedCount, progressTotal) / progressTotal) * 26),
+          4 + Math.min(80, (Math.min(loadedCount, progressTotal) / progressTotal) * 80),
           t("exportPhaseRetrying"),
           t("exportProgressRetry", {
             attempt,
@@ -489,10 +477,6 @@ async function exportAddressTransactions() {
       },
     );
 
-    const allTxs = (chainTxs || []).filter(
-      (tx) => tx?.txid && tx?.status?.confirmed,
-    );
-
     if (allTxs.length === 0) {
       showExportError(t("errorExportEmpty"));
       return;
@@ -501,51 +485,18 @@ async function exportAddressTransactions() {
     const txTotal = allTxs.length;
 
     setExportProgress(
-      30,
+      84,
       t("exportPhaseFetchingTxs"),
       t("exportProgressTxs", { done: txTotal, total: txTotal }),
     );
 
-    setExportProgress(
-      32,
-      t("exportPhaseFetchingTimes"),
-      t("exportProgressTimes", { done: 0, total: txTotal }),
-    );
-
-    const firstSeenMap = await fetchFirstSeenMap(
-      allTxs,
-      (done, total) => {
-        const pct = 32 + ((done / total) * 52);
-        setExportProgress(
-          pct,
-          t("exportPhaseFetchingTimes"),
-          t("exportProgressTimes", { done, total }),
-        );
-      },
-      ({ attempt, maxRetries, resolvedCount, total }) => {
-        const pct = 32 + ((resolvedCount / total) * 52);
-        setExportProgress(
-          pct,
-          t("exportPhaseRetrying"),
-          t("exportProgressRetryTimes", {
-            attempt,
-            maxRetries,
-            done: resolvedCount,
-            total,
-          }),
-        );
-      },
-    );
-
-    const rows = allTxs.map((tx) =>
-      buildTransactionRow(tx, watchTarget, firstSeenMap.get(tx.txid)),
-    );
+    const rows = allTxs.map((tx) => buildTransactionRow(tx, watchTarget));
 
     let totalReceivedSats = 0;
     let totalSentSats = 0;
 
     rows.forEach((row) => {
-      const amountBtc = Number(row[5]);
+      const amountBtc = Number(row[3]);
       if (!Number.isFinite(amountBtc)) return;
       if (amountBtc >= 0) {
         totalReceivedSats += Math.round(amountBtc * AppConstants.SATS_PER_BTC);
@@ -569,7 +520,7 @@ async function exportAddressTransactions() {
     };
 
     setExportProgress(
-      88,
+      86,
       t("exportPhaseBuilding"),
       t("exportProgressBuilding", { done: txTotal, total: txTotal }),
     );

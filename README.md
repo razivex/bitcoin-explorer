@@ -275,9 +275,11 @@ While the file is generated, a blurred overlay shows the current step, a progres
 
 **Export phases:**
 
-1. Fetch confirmed transactions from the chain (`/txs/chain`, paginated in batches of 25)
-2. Fetch mempool first-seen timestamps for each transaction (with block-audit fallback for older txs)
+1. Take a chain snapshot (current block height, time, and transaction count from the lookup)
+2. Fetch confirmed transactions from the chain (`/txs/chain`, paginated in batches of 25), stopping at the snapshot count and filtering out any transaction confirmed after the snapshot
 3. Build the spreadsheet and download
+
+Mempool first-seen time is **not** included in the export. That timestamp is not recorded on the Bitcoin blockchain and is not always available from third-party services. The summary sheet includes a note explaining this.
 
 **Large exports (resilience):**
 
@@ -285,12 +287,12 @@ Large address histories can require hundreds of API requests. Export is built to
 
 | Mechanism | Behavior |
 |---|---|
-| **Per-batch retry** | Each paginated fetch and timestamp batch retries up to 10 times with exponential backoff |
+| **Per-batch retry** | Each paginated fetch retries up to 10 times with exponential backoff |
 | **Resume on retry** | Already-fetched transactions stay in memory; a failed batch retries from the same pagination cursor |
 | **Rate-limit backoff** | HTTP 429/502/503 responses use a longer initial delay before retry |
 | **Batch pacing** | 300 ms pause between successful batches to reduce provider rate limiting |
 | **Export timeout** | Export requests use a 20 s per-provider timeout (vs 5 s for normal lookups) |
-| **Graceful fallback** | If an individual first-seen lookup still fails after retries, that row exports with `N/A` instead of aborting the whole file |
+| **Chain snapshot** | Export uses the transaction count and chain tip from lookup time so the file matches what was on screen when export started |
 
 While retrying, the overlay shows *"Connection issue, retrying…"* with the attempt number and how many transactions have been kept so far.
 
@@ -299,9 +301,7 @@ While retrying, the overlay shows *"Connection issue, retrying…"* with the att
 | Column | Description |
 |---|---|
 | Transaction ID | Full txid |
-| Timestamp Mempool (UTC) | First seen in the mempool (`YYYY-MM-DD HH:MM:SS`) |
-| Timestamp Confirmed (UTC) | Block time when confirmed |
-| Confirmation Time | Elapsed time from mempool to confirmation |
+| Timestamp Confirmed (UTC) | Block time when confirmed (`YYYY-MM-DD HH:MM:SS`) |
 | Type | Received or Sent (color-coded in the Type column only) |
 | Amount (BTC) | Net amount for the address (positive = received, negative = sent) |
 | Fee (BTC) | Transaction fee |
@@ -309,7 +309,7 @@ While retrying, the overlay shows *"Connection issue, retrying…"* with the att
 | Inputs Count | Number of inputs |
 | Outputs Count | Number of outputs |
 
-**Summary sheet** — address or public key, total transactions, total received, total sent, and current confirmed balance.
+**Summary sheet** — address or public key, total transactions, total received, total sent, current confirmed balance, and a note that mempool first-seen time is excluded because it is not on-chain data.
 
 Unconfirmed mempool transactions are **not** included in the export.
 
