@@ -53,6 +53,9 @@ function getExportColumns() {
     t("exportColConfirmedTs"),
     t("exportColType"),
     t("exportColAmount"),
+    t("exportColSizeBytes"),
+    t("exportColSizeVbytes"),
+    t("exportColFeeRate"),
     t("exportColFee"),
     t("exportColBlockHeight"),
     t("exportColInputsCount"),
@@ -269,6 +272,12 @@ function buildTransactionRow(tx, watchTarget) {
   const netSats = calcAddressNetSats(tx, watchTarget);
   const type = netSats >= 0 ? t("exportTypeReceived") : t("exportTypeSent");
   const feeSats = Number(tx?.fee);
+  const sizeBytes = Number(tx?.size);
+  const vsize = getTxVsize(tx);
+  const feeRate =
+    Number.isFinite(feeSats) && Number.isFinite(vsize) && vsize > 0
+      ? feeSats / vsize
+      : null;
   const blockTime = confirmed ? Number(tx.status.block_time) : null;
   const confirmedDate =
     confirmed && Number.isFinite(blockTime) && blockTime > 0
@@ -280,6 +289,9 @@ function buildTransactionRow(tx, watchTarget) {
     confirmedDate ? formatUtcDateTime(confirmedDate) : t("na"),
     type,
     satsToBtc(netSats),
+    Number.isFinite(sizeBytes) && sizeBytes > 0 ? sizeBytes : "",
+    Number.isFinite(vsize) && vsize > 0 ? vsize : "",
+    feeRate != null ? feeRate : "",
     Number.isFinite(feeSats) ? satsToBtc(feeSats) : "",
     confirmed && Number.isFinite(Number(tx.status.block_height))
       ? Number(tx.status.block_height)
@@ -354,11 +366,17 @@ async function buildExportWorkbook(rows, summary) {
     { width: 14 },
     { width: 14 },
     { width: 14 },
+    { width: 14 },
+    { width: 14 },
+    { width: 14 },
   ];
 
   for (let rowIndex = 2; rowIndex <= lastRow; rowIndex += 1) {
     txSheet.getCell(`D${rowIndex}`).numFmt = "0.00000000";
-    txSheet.getCell(`E${rowIndex}`).numFmt = "0.00000000";
+    txSheet.getCell(`E${rowIndex}`).numFmt = "0";
+    txSheet.getCell(`F${rowIndex}`).numFmt = "0";
+    txSheet.getCell(`G${rowIndex}`).numFmt = "0.00";
+    txSheet.getCell(`H${rowIndex}`).numFmt = "0.00000000";
   }
 
   const summarySheet = workbook.addWorksheet(t("exportSheetSummary"));

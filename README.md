@@ -304,6 +304,9 @@ While retrying, the overlay shows *"Connection issue, retrying…"* with the att
 | Timestamp Confirmed (UTC) | Block time when confirmed (`YYYY-MM-DD HH:MM:SS`) |
 | Type | Received or Sent (color-coded in the Type column only) |
 | Amount (BTC) | Net amount for the address (positive = received, negative = sent) |
+| Size (bytes) | Serialized transaction size in bytes |
+| Size (vB) | Virtual size in vbytes (`vsize`, or `weight / 4`) |
+| Fee (sat/vB) | Fee rate (`fee / vsize`) |
 | Fee (BTC) | Transaction fee |
 | Block Height | Confirmation block height |
 | Inputs Count | Number of inputs |
