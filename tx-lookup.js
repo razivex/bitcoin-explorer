@@ -1,13 +1,16 @@
-function getTxConfirmationCount(blockHeight) {
+function getTxConfirmationCount(blockHeight, network = "bitcoin") {
   const height = Number(blockHeight);
-  const tip = Number(AppState.cachedBlockHeight);
+  const tip =
+    network === "liquid"
+      ? Number(AppState.cachedLiquidBlockHeight)
+      : Number(AppState.cachedBlockHeight);
   if (!Number.isFinite(height) || !Number.isFinite(tip)) return null;
   return Math.max(0, tip - height + 1);
 }
 
-function formatTxConfirmations(confirmed, blockHeight) {
+function formatTxConfirmations(confirmed, blockHeight, network = "bitcoin") {
   if (!confirmed) return "0";
-  const count = getTxConfirmationCount(blockHeight);
+  const count = getTxConfirmationCount(blockHeight, network);
   if (count === null) return t("na");
   return count.toLocaleString(getLocale());
 }
@@ -17,10 +20,15 @@ function updateTxConfirmationsDisplay(data = AppState.lastAppliedTxData) {
   AppDom.txMetaConfirmationsEl.textContent = formatTxConfirmations(
     data.confirmed,
     data.blockHeight,
+    data.network || "bitcoin",
   );
 }
 
-function formatTxFeeLine(feeSats, vsize) {
+function formatTxFeeLine(feeSats, vsize, { confidential = false } = {}) {
+  if (confidential || feeSats === null || feeSats === undefined) {
+    return t("confidential");
+  }
+
   const fee = Number(feeSats);
   const vbytes = Number(vsize);
   if (!Number.isFinite(fee) || !Number.isFinite(vbytes) || vbytes <= 0) {
@@ -51,7 +59,10 @@ async function fetchTxFirstSeenFromBlockAudit(txid, blockHash) {
   }
 }
 
-async function fetchTxFirstSeen(txid, tx = null) {
+async function fetchTxFirstSeen(txid, tx = null, network = "bitcoin") {
+  // First-seen mempool timestamps are only available for Bitcoin mempool providers.
+  if (network !== "bitcoin") return null;
+
   try {
     const times = await fetchMempoolTransactionTimes(txid);
     if (Array.isArray(times)) {
@@ -71,21 +82,64 @@ async function fetchTxFirstSeen(txid, tx = null) {
   return null;
 }
 
-async function loadTransactionData(txid) {
-  const tx = await fetchMempoolJson(`/tx/${encodeURIComponent(txid)}`);
-  const confirmed = Boolean(tx?.status?.confirmed);
-  const firstSeenTs = await fetchTxFirstSeen(txid, tx);
+async function ensureLiquidTipHeight() {
+  try {
+    const height = await fetchLiquidTipHeight();
+    if (Number.isFinite(height)) {
+      AppState.cachedLiquidBlockHeight = height;
+    }
+    return height;
+  } catch (err) {
+    console.error(err);
+    return AppState.cachedLiquidBlockHeight;
+  }
+}
 
-  const outputSats = calcTxOutputValue(tx);
+async function loadTransactionDataForNetwork(txid, network) {
+  const fetchJson = network === "liquid" ? fetchLiquidJson : fetchMempoolJson;
+  const tx = await fetchJson(`/tx/${encodeURIComponent(txid)}`);
+
+  if (!tx || typeof tx !== "object" || !tx.txid) {
+    throw new Error("Invalid transaction response");
+  }
+
+  if (network === "liquid") {
+    await ensureLiquidTipHeight();
+  }
+
+  const confirmed = Boolean(tx?.status?.confirmed);
+  const firstSeenTs = await fetchTxFirstSeen(txid, tx, network);
+
+  let outputSats;
+  let outputConfidential = false;
+  let feeSats;
+  let feeConfidential = false;
+
+  if (network === "liquid") {
+    outputSats = calcLiquidTxOutputValue(tx);
+    outputConfidential = outputSats === null;
+    feeSats = getLiquidTxFeeSats(tx);
+    feeConfidential = feeSats === null;
+  } else {
+    outputSats = calcTxOutputValue(tx);
+    feeSats = Number(tx?.fee);
+    if (!Number.isFinite(feeSats)) feeSats = null;
+  }
+
   const embeddedData = detectEmbeddedData(tx);
-  const feeSats = Number(tx?.fee);
   const vsize = getTxVsize(tx);
 
   return {
     tx,
     txid,
+    network,
     confirmed,
-    outputBtc: satsToBtc(outputSats),
+    outputConfidential,
+    feeConfidential,
+    outputBtc:
+      outputSats === null || outputSats === undefined
+        ? null
+        : satsToBtc(outputSats),
     hasEmbeddedData: embeddedData.length > 0,
     feeSats: Number.isFinite(feeSats) ? feeSats : null,
     vsize,
@@ -101,6 +155,19 @@ async function loadTransactionData(txid) {
         ? Number(tx.status.block_height)
         : null,
   };
+}
+
+async function loadTransactionData(txid) {
+  try {
+    return await loadTransactionDataForNetwork(txid, "bitcoin");
+  } catch (bitcoinErr) {
+    try {
+      return await loadTransactionDataForNetwork(txid, "liquid");
+    } catch (liquidErr) {
+      console.warn("[tx-lookup] Liquid fallback failed:", liquidErr?.message);
+      throw bitcoinErr;
+    }
+  }
 }
 
 function setTxIdDisplay(fullTxid) {
@@ -149,7 +216,12 @@ function startTxTimeSinceConfirmationTimer(fromDate) {
 }
 
 function applyTransactionData(data, { silent = false } = {}) {
-  AppDom.txValueBtcEl.textContent = `${formatBtc(data.outputBtc)} BTC`;
+  AppState.currentNetwork = data.network || "bitcoin";
+
+  AppDom.txValueBtcEl.textContent = formatAssetAmountLabel(data.outputBtc, {
+    network: data.network,
+    confidential: data.outputConfidential || data.outputBtc === null,
+  });
   scheduleTxValueBtcFit();
 
   AppDom.txStatusSubEl.textContent = data.confirmed
@@ -161,19 +233,38 @@ function applyTransactionData(data, { silent = false } = {}) {
 
   setTxIdDisplay(data.txid);
 
-  AppDom.txMetaDateEl.textContent = data.firstSeenDate
-    ? formatDateTime(data.firstSeenDate)
-    : t("na");
+  const isLiquid = data.network === "liquid";
+  if (AppDom.txMetaNetworkEl) {
+    AppDom.txMetaNetworkEl.textContent = isLiquid
+      ? t("networkLiquid")
+      : t("networkBitcoin");
+  }
+
+
+  // Liquid has no mempool first-seen timestamps, so hide these fields.
+  if (AppDom.txMetaDateRowEl) {
+    AppDom.txMetaDateRowEl.hidden = isLiquid;
+  }
+  if (AppDom.txMetaTimeToConfirmationRowEl) {
+    AppDom.txMetaTimeToConfirmationRowEl.hidden = isLiquid;
+  }
+
+  if (!isLiquid) {
+    AppDom.txMetaDateEl.textContent = data.firstSeenDate
+      ? formatDateTime(data.firstSeenDate)
+      : t("na");
+    AppDom.txMetaTimeToConfirmationEl.textContent = data.confirmed
+      ? formatTimeFromFirstSeenToConfirmed(
+          data.firstSeenDate,
+          data.confirmedDate,
+        )
+      : t("na");
+  }
+
   AppDom.txMetaConfirmedAtEl.textContent =
     data.confirmed && data.confirmedDate
       ? formatDateTime(data.confirmedDate)
       : t("na");
-  AppDom.txMetaTimeToConfirmationEl.textContent = data.confirmed
-    ? formatTimeFromFirstSeenToConfirmed(
-        data.firstSeenDate,
-        data.confirmedDate,
-      )
-    : t("na");
 
   if (data.confirmed && data.confirmedDate) {
     startTxTimeSinceConfirmationTimer(data.confirmedDate);
@@ -182,7 +273,9 @@ function applyTransactionData(data, { silent = false } = {}) {
     AppDom.txMetaTimeSinceConfirmationEl.textContent = t("na");
   }
 
-  AppDom.txMetaFeeEl.textContent = formatTxFeeLine(data.feeSats, data.vsize);
+  AppDom.txMetaFeeEl.textContent = formatTxFeeLine(data.feeSats, data.vsize, {
+    confidential: data.feeConfidential,
+  });
   AppDom.txEmbeddedDataEl.textContent = data.hasEmbeddedData ? t("yes") : t("no");
   updateTxConfirmationsDisplay(data);
 
@@ -199,10 +292,11 @@ async function refreshTransactionSilently() {
 
   const targetTxid = AppState.currentTxLookup;
   const generation = AppState.txLookupGeneration;
+  const network = AppState.lastAppliedTxData?.network || "bitcoin";
   AppState.refreshInFlight = true;
 
   try {
-    const data = await loadTransactionData(targetTxid);
+    const data = await loadTransactionDataForNetwork(targetTxid, network);
     if (
       generation !== AppState.txLookupGeneration ||
       targetTxid !== AppState.currentTxLookup
@@ -240,6 +334,7 @@ window.updateTxConfirmationsDisplay = updateTxConfirmationsDisplay;
 window.formatTxFeeLine = formatTxFeeLine;
 window.fetchTxFirstSeenFromBlockAudit = fetchTxFirstSeenFromBlockAudit;
 window.fetchTxFirstSeen = fetchTxFirstSeen;
+window.loadTransactionDataForNetwork = loadTransactionDataForNetwork;
 window.loadTransactionData = loadTransactionData;
 window.setTxIdDisplay = setTxIdDisplay;
 window.formatTimeFromFirstSeenToConfirmed = formatTimeFromFirstSeenToConfirmed;

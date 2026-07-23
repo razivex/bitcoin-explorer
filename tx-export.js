@@ -99,20 +99,29 @@ function outputMatchesTarget(output, watchTarget) {
 function calcAddressNetSats(tx, watchTarget) {
   let received = 0;
   let sent = 0;
+  let confidential = false;
 
   for (const vout of tx.vout || []) {
-    if (outputMatchesTarget(vout, watchTarget)) {
-      received += Number(vout.value) || 0;
+    if (!outputMatchesTarget(vout, watchTarget)) continue;
+    if (isVoutConfidential(vout) || vout.value === undefined || vout.value === null) {
+      confidential = true;
+      continue;
     }
+    received += Number(vout.value) || 0;
   }
 
   for (const vin of tx.vin || []) {
     if (vin.is_coinbase) continue;
-    if (outputMatchesTarget(vin.prevout, watchTarget)) {
-      sent += Number(vin.prevout?.value) || 0;
+    if (!outputMatchesTarget(vin.prevout, watchTarget)) continue;
+    const prev = vin.prevout;
+    if (isVoutConfidential(prev) || prev?.value === undefined || prev?.value === null) {
+      confidential = true;
+      continue;
     }
+    sent += Number(prev.value) || 0;
   }
 
+  if (confidential) return null;
   return received - sent;
 }
 
@@ -129,15 +138,26 @@ function hideExportOverlay() {
   setExportProgress(0, "", "");
 }
 
-async function createExportSnapshot(txCount) {
-  let blockHeight = Number(AppState.cachedBlockHeight);
+async function createExportSnapshot(txCount, network = "bitcoin") {
+  let blockHeight =
+    network === "liquid"
+      ? Number(AppState.cachedLiquidBlockHeight)
+      : Number(AppState.cachedBlockHeight);
 
   try {
-    const heightText = await fetchMempoolText("/blocks/tip/height", {
-      validate: (value) => /^\d+$/.test(value),
-      timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
-    });
-    blockHeight = Number(heightText);
+    if (network === "liquid") {
+      const height = await fetchLiquidTipHeight();
+      if (Number.isFinite(height)) {
+        blockHeight = height;
+        AppState.cachedLiquidBlockHeight = height;
+      }
+    } else {
+      const heightText = await fetchMempoolText("/blocks/tip/height", {
+        validate: (value) => /^\d+$/.test(value),
+        timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
+      });
+      blockHeight = Number(heightText);
+    }
   } catch (err) {
     console.warn(
       "[tx-export] could not refresh block height for snapshot, using cached:",
@@ -149,6 +169,7 @@ async function createExportSnapshot(txCount) {
     blockHeight: Number.isFinite(blockHeight) ? blockHeight : null,
     blockTimeSec: Math.floor(Date.now() / 1000),
     txCount: Math.max(0, Number(txCount) || 0),
+    network,
   };
 }
 
@@ -215,6 +236,8 @@ async function fetchAllChainTxs(
   const allTxs = [];
   let lastTxid = null;
   const maxCount = snapshot?.txCount;
+  const network = snapshot?.network || "bitcoin";
+  const fetchJson = network === "liquid" ? fetchLiquidJson : fetchMempoolJson;
 
   while (true) {
     if (maxCount != null && allTxs.length >= maxCount) break;
@@ -225,7 +248,7 @@ async function fetchAllChainTxs(
 
     const batch = await fetchWithExportRetry(
       () =>
-        fetchMempoolJson(path, {
+        fetchJson(path, {
           timeoutMs: EXPORT_FETCH_TIMEOUT_MS,
         }),
       {
@@ -270,8 +293,15 @@ async function fetchAllChainTxs(
 function buildTransactionRow(tx, watchTarget) {
   const confirmed = Boolean(tx?.status?.confirmed);
   const netSats = calcAddressNetSats(tx, watchTarget);
-  const type = netSats >= 0 ? t("exportTypeReceived") : t("exportTypeSent");
+  const amountConfidential = netSats === null;
+  const type = amountConfidential
+    ? t("confidential")
+    : netSats >= 0
+      ? t("exportTypeReceived")
+      : t("exportTypeSent");
   const feeSats = Number(tx?.fee);
+  const feeConfidential =
+    !Number.isFinite(feeSats) && isTxOutputValueConfidential(tx);
   const sizeBytes = Number(tx?.size);
   const vsize = getTxVsize(tx);
   const feeRate =
@@ -288,11 +318,15 @@ function buildTransactionRow(tx, watchTarget) {
     tx.txid,
     confirmedDate ? formatUtcDateTime(confirmedDate) : t("na"),
     type,
-    satsToBtc(netSats),
+    amountConfidential ? t("confidential") : satsToBtc(netSats),
     Number.isFinite(sizeBytes) && sizeBytes > 0 ? sizeBytes : "",
     Number.isFinite(vsize) && vsize > 0 ? vsize : "",
-    feeRate != null ? feeRate : "",
-    Number.isFinite(feeSats) ? satsToBtc(feeSats) : "",
+    feeConfidential ? t("confidential") : feeRate != null ? feeRate : "",
+    feeConfidential
+      ? t("confidential")
+      : Number.isFinite(feeSats)
+        ? satsToBtc(feeSats)
+        : "",
     confirmed && Number.isFinite(Number(tx.status.block_height))
       ? Number(tx.status.block_height)
       : "",
@@ -454,9 +488,10 @@ async function exportAddressTransactions() {
   try {
     const applied = AppState.lastAppliedData;
     const watchTarget = applied.watchTarget;
+    const network = applied.network || watchTarget.network || "bitcoin";
     const apiBasePath = watchTarget.mode === "pubkey" ? "scripthash" : "address";
 
-    const snapshot = await createExportSnapshot(applied.txCount);
+    const snapshot = await createExportSnapshot(applied.txCount, network);
     const totalTxCount = snapshot.txCount;
     const progressTotal = Math.max(totalTxCount, 1);
 
@@ -513,7 +548,12 @@ async function exportAddressTransactions() {
     let totalReceivedSats = 0;
     let totalSentSats = 0;
 
+    let anyConfidentialAmount = false;
     rows.forEach((row) => {
+      if (row[3] === t("confidential")) {
+        anyConfidentialAmount = true;
+        return;
+      }
       const amountBtc = Number(row[3]);
       if (!Number.isFinite(amountBtc)) return;
       if (amountBtc >= 0) {
@@ -532,9 +572,16 @@ async function exportAddressTransactions() {
           : t("exportSummaryAddress"),
       address: watchTarget.displayValue,
       totalTransactions: allTxs.length,
-      totalReceivedBtc: satsToBtc(totalReceivedSats),
-      totalSentBtc: satsToBtc(totalSentSats),
-      currentBalanceBtc: applied.confirmedBtc,
+      totalReceivedBtc: anyConfidentialAmount
+        ? t("confidential")
+        : satsToBtc(totalReceivedSats),
+      totalSentBtc: anyConfidentialAmount
+        ? t("confidential")
+        : satsToBtc(totalSentSats),
+      currentBalanceBtc:
+        applied.balanceConfidential || applied.confirmedBtc === null
+          ? t("confidential")
+          : applied.confirmedBtc,
     };
 
     setExportProgress(
@@ -550,7 +597,8 @@ async function exportAddressTransactions() {
       t("exportProgressDownloading", { total: txTotal }),
     );
     const stamp = formatUtcDateTime(new Date()).replace(/[:\s]/g, "-");
-    const filename = `bitcoin-txs-${sanitizeFilenamePart(watchTarget.displayValue)}-${stamp}.xlsx`;
+    const chainPrefix = network === "liquid" ? "liquid" : "bitcoin";
+    const filename = `${chainPrefix}-txs-${sanitizeFilenamePart(watchTarget.displayValue)}-${stamp}.xlsx`;
     await downloadWorkbook(workbook, filename);
     setExportProgress(
       100,

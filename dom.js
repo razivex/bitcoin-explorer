@@ -6,8 +6,13 @@ window.AppDom = {
   txValueBtcEl: document.getElementById("txValueBtc"),
   txStatusSubEl: document.getElementById("txStatusSub"),
   txMetaIdEl: document.getElementById("txMetaId"),
+  txMetaNetworkEl: document.getElementById("txMetaNetwork"),
+  txMetaDateRowEl: document.getElementById("txMetaDateRow"),
   txMetaDateEl: document.getElementById("txMetaDate"),
   txMetaConfirmedAtEl: document.getElementById("txMetaConfirmedAt"),
+  txMetaTimeToConfirmationRowEl: document.getElementById(
+    "txMetaTimeToConfirmationRow",
+  ),
   txMetaTimeToConfirmationEl: document.getElementById("txMetaTimeToConfirmation"),
   txMetaTimeSinceConfirmationEl: document.getElementById(
     "txMetaTimeSinceConfirmation",
@@ -33,6 +38,7 @@ window.AppDom = {
   cardEl: document.querySelector(".card"),
   metaAddressLabelEl: document.getElementById("metaAddressLabel"),
   metaAddressEl: document.getElementById("metaAddress"),
+  metaNetworkEl: document.getElementById("metaNetwork"),
   metaAddressTypeEl: document.getElementById("metaAddressType"),
   metaExposedPubKeyEl: document.getElementById("metaExposedPubKey"),
   metaTransactionsEl: document.getElementById("metaTransactions"),

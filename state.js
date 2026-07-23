@@ -41,7 +41,10 @@ window.AppState = {
     confirmed: false,
   },
   lastAppliedData: null,
+  /** @type {"bitcoin" | "liquid" | null} */
+  currentNetwork: null,
   cachedBlockHeight: null,
+  cachedLiquidBlockHeight: null,
   cachedMiningStats: {
     hashrate: null,
     difficulty: null,

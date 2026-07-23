@@ -56,15 +56,15 @@
 
   <main class="card">
     <h1 data-i18n="pageHeading">Bitcoin Explorer</h1>
-    <p class="sub" data-i18n="pageSub">Real time check any bitcoin address, pubkey, or transaction, including balance, status, and other important data</p>
+    <p class="sub" data-i18n="pageSub">Real time check any Bitcoin or Liquid address, pubkey, or transaction, including balance, status, and other important data</p>
 
-    <label for="address" data-i18n="searchLabel">Bitcoin address, public key, or transaction</label>
+    <label for="address" data-i18n="searchLabel">Bitcoin/Liquid address, public key, or transaction</label>
     <div class="row">
       <input
         id="address"
         type="text"
         data-i18n-placeholder="searchPlaceholder"
-        placeholder="e.g. bc1q..., 1A1zP1..., public key hex, or txid"
+        placeholder="e.g. bc1q..., ex1..., lq1..., public key hex, or txid"
         spellcheck="false"
         autocomplete="off"
       />
@@ -81,12 +81,17 @@
           <strong data-i18n="txId">Transaction ID:</strong>
           <span id="txMetaId" class="meta__address"></span>
         </div>
-        <strong data-i18n="txDate">First Seen Date:</strong> <span id="txMetaDate">N/A</span><br>
+        <strong data-i18n="network">Network:</strong> <span id="txMetaNetwork"></span><br>
+        <span id="txMetaDateRow" class="meta__row">
+          <strong data-i18n="txDate">First Seen Date:</strong> <span id="txMetaDate">N/A</span><br>
+        </span>
         <strong data-i18n="txFee">Fee:</strong> <span id="txMetaFee">N/A</span><br>
         <strong data-i18n="txEmbeddedData">Embedded data:</strong> <span id="txEmbeddedData">N/A</span><br>
         <strong data-i18n="txConfirmations">Confirmations:</strong> <span id="txMetaConfirmations">N/A</span><br>
         <strong data-i18n="txConfirmedAt">Confirmed Date:</strong> <span id="txMetaConfirmedAt">N/A</span><br>
-        <strong data-i18n="txTimeToConfirmation">Time to confirmation:</strong> <span id="txMetaTimeToConfirmation">N/A</span><br>
+        <span id="txMetaTimeToConfirmationRow" class="meta__row">
+          <strong data-i18n="txTimeToConfirmation">Time to confirmation:</strong> <span id="txMetaTimeToConfirmation">N/A</span><br>
+        </span>
         <strong data-i18n="txTimeSinceConfirmation">Time since confirmation:</strong> <span id="txMetaTimeSinceConfirmation">N/A</span><br>
       </div>
     </section>
@@ -152,6 +157,7 @@
           <strong id="metaAddressLabel" data-i18n="address">Address:</strong>
           <span id="metaAddress" class="meta__address"></span>
         </div>
+        <strong data-i18n="network">Network:</strong> <span id="metaNetwork"></span><br>
         <strong data-i18n="addressType">Address Type:</strong> <span id="metaAddressType"></span><br>
         <strong data-i18n="exposedPubKey">Exposed PubKey:</strong> <span id="metaExposedPubKey"></span><br>
         <strong data-i18n="transactions">Transactions:</strong> <span id="metaTransactions"></span><br>
@@ -204,6 +210,7 @@
   <script src="api-client.js"></script>
   <script src="pubkey-utils.js"></script>
   <script src="tx-utils.js"></script>
+  <script src="liquid-utils.js"></script>
   <script src="i18n.js"></script>
   <script src="dom.js"></script>
   <script src="state.js"></script>

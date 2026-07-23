@@ -6,11 +6,16 @@ function calcBalance(stats) {
   return funded - spent;
 }
 
-function isValidAddressData(addressData) {
-  return Boolean(
-    addressData?.chain_stats &&
-      Number.isFinite(Number(addressData.chain_stats.funded_txo_sum)) &&
-      Number.isFinite(Number(addressData.chain_stats.spent_txo_sum)),
+function isValidAddressData(addressData, { network = "bitcoin" } = {}) {
+  if (!addressData?.chain_stats) return false;
+
+  if (network === "liquid") {
+    return Number.isFinite(Number(addressData.chain_stats.tx_count));
+  }
+
+  return (
+    Number.isFinite(Number(addressData.chain_stats.funded_txo_sum)) &&
+    Number.isFinite(Number(addressData.chain_stats.spent_txo_sum))
   );
 }
 
@@ -37,9 +42,16 @@ function formatExposedPubKey(exposed) {
   return exposed ? t("yes") : t("no");
 }
 
-function getAddressType(address, { isPublicKey = false } = {}) {
+function getAddressType(
+  address,
+  { isPublicKey = false, network = "bitcoin" } = {},
+) {
   const normalized = address.trim();
   if (!normalized) return t("unknown");
+
+  if (network === "liquid" || isLiquidAddress(normalized)) {
+    return getLiquidAddressType(normalized);
+  }
 
   if (isPublicKey || isHexPublicKey(normalized)) {
     return "P2PK";
@@ -72,6 +84,10 @@ function calcTxOutputValue(tx) {
 function getTxVsize(tx) {
   const vsize = Number(tx?.vsize);
   if (Number.isFinite(vsize) && vsize > 0) return vsize;
+
+  // Liquid/Elements often exposes discount_vsize for fee-rate calculations.
+  const discountVsize = Number(tx?.discount_vsize);
+  if (Number.isFinite(discountVsize) && discountVsize > 0) return discountVsize;
 
   const weight = Number(tx?.weight);
   if (Number.isFinite(weight) && weight > 0) return Math.ceil(weight / 4);

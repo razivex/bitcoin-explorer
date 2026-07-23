@@ -7,6 +7,7 @@ function resetLookupUiState() {
   hideActionMenu();
   hideExportOverlay();
   AppState.currentLookupInput = null;
+  AppState.currentNetwork = null;
   AppState.lastTxTimestamp = null;
   AppState.lastAppliedData = null;
   clearWatchedLookup();
@@ -62,7 +63,12 @@ async function lookupAddress() {
 
     applyAddressData(data, { silent: false });
     AppDom.txResultEl.classList.remove("show");
-    setWatchedLookup(data.watchTarget);
+    // Address mempool watch uses Bitcoin WebSocket providers only.
+    if (data.network !== "liquid") {
+      setWatchedLookup(data.watchTarget);
+    } else {
+      clearWatchedLookup();
+    }
     startAutoRefresh();
   } catch (err) {
     if (generation === AppState.lookupGeneration) {

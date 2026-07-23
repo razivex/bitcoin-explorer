@@ -6,9 +6,10 @@ const translations = {
     pageTitle: "Bitcoin Explorer",
     pageHeading: "Bitcoin Explorer",
     pageSub:
-      "Real time check any bitcoin address, pubkey, or transaction, including balance, status, and other important data",
-    searchLabel: "Bitcoin address, public key, or transaction",
-    searchPlaceholder: "e.g. bc1q..., 1A1zP1..., public key hex, or txid",
+      "Real time check any Bitcoin or Liquid address, pubkey, or transaction, including balance, status, and other important data",
+    searchLabel: "Bitcoin/Liquid address, public key, or transaction",
+    searchPlaceholder:
+      "e.g. bc1q..., ex1..., lq1..., public key hex, or txid",
     txId: "Transaction ID:",
     txDate: "First Seen Date:",
     txStatus: "Status:",
@@ -65,6 +66,9 @@ const translations = {
     qrCanvasLabel: "Address QR code",
     address: "Address:",
     publicKey: "Public Key:",
+    network: "Network:",
+    networkBitcoin: "Bitcoin",
+    networkLiquid: "Liquid",
     addressType: "Address Type:",
     exposedPubKey: "Exposed PubKey:",
     transactions: "Transactions:",
@@ -93,11 +97,12 @@ const translations = {
     soundsOn: "Sounds on",
     soundsOff: "Sounds off",
     errorEmpty:
-      "Please enter a Bitcoin address, public key, or transaction ID.",
+      "Please enter a Bitcoin or Liquid address, public key, or transaction ID.",
     errorInvalidPubkey:
       "Invalid public key. Paste a compressed (02/03...) or uncompressed (04...) key in hex.",
     errorFetch:
       "Could not fetch balance. Check the address or public key and try again.",
+    confidential: "Confidential",
     errorQrLibrary:
       "QR code library failed to load. Refresh the page and try again.",
     errorQrGenerate: "Could not generate QR code. Please try again.",
@@ -132,9 +137,10 @@ const translations = {
     pageTitle: "Explorador Bitcoin",
     pageHeading: "Explorador Bitcoin",
     pageSub:
-      "Verificação em tempo real de qualquer endereço bitcoin, chave pública ou transação, incluindo saldo, status e outros dados importantes",
-    searchLabel: "Endereço bitcoin, chave pública ou transação",
-    searchPlaceholder: "ex.: bc1q..., 1A1zP1..., chave pública em hex ou txid",
+      "Verificação em tempo real de qualquer endereço Bitcoin ou Liquid, chave pública ou transação, incluindo saldo, status e outros dados importantes",
+    searchLabel: "Endereço Bitcoin/Liquid, chave pública ou transação",
+    searchPlaceholder:
+      "ex.: bc1q..., ex1..., lq1..., chave pública em hex ou txid",
     txId: "ID da Transação:",
     txDate: "Data da primeira detecção:",
     txStatus: "Status:",
@@ -192,6 +198,9 @@ const translations = {
     qrCanvasLabel: "QR code do endereço",
     address: "Endereço:",
     publicKey: "Chave Pública:",
+    network: "Rede:",
+    networkBitcoin: "Bitcoin",
+    networkLiquid: "Liquid",
     addressType: "Tipo de Endereço:",
     exposedPubKey: "Chave Pública Exposta:",
     transactions: "Transações:",
@@ -220,11 +229,12 @@ const translations = {
     soundsOn: "Sons ligados",
     soundsOff: "Sons desligados",
     errorEmpty:
-      "Por favor, insira um endereço bitcoin, chave pública ou ID de transação.",
+      "Por favor, insira um endereço Bitcoin ou Liquid, chave pública ou ID de transação.",
     errorInvalidPubkey:
       "Chave pública inválida. Cole uma chave comprimida (02/03...) ou não comprimida (04...) em hexadecimal.",
     errorFetch:
       "Não foi possível buscar o saldo. Verifique o endereço ou a chave pública e tente novamente.",
+    confidential: "Confidencial",
     errorQrLibrary:
       "A biblioteca de QR code falhou ao carregar. Atualize a página e tente novamente.",
     errorQrGenerate: "Não foi possível gerar o código QR. Tente novamente.",

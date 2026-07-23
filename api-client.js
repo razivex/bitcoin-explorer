@@ -16,6 +16,11 @@ const CHAIN_API_PROVIDERS = [
   ...ESPLORA_API_PROVIDERS,
 ];
 
+const LIQUID_API_PROVIDERS = [
+  "https://blockstream.info/liquid/api",
+  "https://liquid.network/api",
+];
+
 const MEMPOOL_WS_PROVIDERS = [
   "wss://mempool.space/api/v1/ws",
   "wss://mempool.emzy.de/api/v1/ws",
@@ -205,6 +210,28 @@ async function fetchMempoolRecent() {
   });
 }
 
+async function fetchLiquidJson(path, options = {}) {
+  const providers = options.providers || LIQUID_API_PROVIDERS;
+  const { parse = "json", validate, timeoutMs } = options;
+
+  return tryProviders(
+    providers,
+    (base) => fetchFromProvider(base, path, { parse, validate, timeoutMs }),
+    "Liquid API",
+  );
+}
+
+async function fetchLiquidText(path, options = {}) {
+  return fetchLiquidJson(path, { ...options, parse: "text" });
+}
+
+async function fetchLiquidTipHeight() {
+  const heightText = await fetchLiquidText("/blocks/tip/height", {
+    validate: (text) => Number.isFinite(Number(text)) && Number(text) >= 0,
+  });
+  return Number(heightText);
+}
+
 function getMempoolWsProviders() {
   return MEMPOOL_WS_PROVIDERS;
 }
@@ -212,10 +239,14 @@ function getMempoolWsProviders() {
 window.API_TIMEOUT_MS = API_TIMEOUT_MS;
 window.WS_CONNECT_TIMEOUT_MS = WS_CONNECT_TIMEOUT_MS;
 window.MEMPOOL_API_PROVIDERS = MEMPOOL_API_PROVIDERS;
+window.LIQUID_API_PROVIDERS = LIQUID_API_PROVIDERS;
 window.fetchWithTimeout = fetchWithTimeout;
 window.fetchMempoolJson = fetchMempoolJson;
 window.fetchMempoolText = fetchMempoolText;
 window.fetchMempoolOnlyJson = fetchMempoolOnlyJson;
+window.fetchLiquidJson = fetchLiquidJson;
+window.fetchLiquidText = fetchLiquidText;
+window.fetchLiquidTipHeight = fetchLiquidTipHeight;
 window.fetchMempoolPrices = fetchMempoolPrices;
 window.fetchMempoolMiningStats = fetchMempoolMiningStats;
 window.fetchMempoolTransactionTimes = fetchMempoolTransactionTimes;
