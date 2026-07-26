@@ -1,95 +1,67 @@
 # Bitcoin Explorer
 
-A lightweight, client-side web app for real-time data on **on-chain Bitcoin**, **Lightning**, and **Liquid**. No backend, no accounts, and no build step — open `index.html` in a browser or serve the folder locally.
+A small client-side app for checking on-chain Bitcoin, Lightning, and Liquid data in real time. No backend, no accounts, no build step. Open `index.html` in a browser, or serve the folder locally.
 
-## What it is used for
+I built this for everyday stuff: verify a donation address, check a balance, export history for accounting, peek at a Lightning address, or dig into old P2PK outputs without spinning up a full explorer.
 
-- **Look up Bitcoin or Liquid addresses, public keys, or transactions** in one search box
-- **Check confirmed balance** and see the live fiat value (USD or BRL)
-- **Review on-chain activity** — script type, transaction count, last transaction date, and whether the pubkey is exposed
-- **Track pending funds** while waiting for confirmation — net unconfirmed amount with incoming/outgoing arrows
-- **Inspect a transaction** — output value, fee, confirmations, mempool first-seen time, time to confirmation, and embedded data (OP_RETURN, inscriptions, runes, etc.)
-- **Look up Lightning channels** by short ID or full channel ID
-- **Look up Lightning addresses** (`user@domain`) via LNURL-pay discovery
-- **Generate Lightning invoices** from a Lightning address and share them with a QR code + copy button
-- **Export confirmed transaction history** to Excel (`.xlsx`) with a summary sheet
-- **Share an address or public key** via a scannable QR code
+## What you can do
 
-Useful for verifying a donation address, checking a wallet balance, exporting records for accounting, exploring Lightning payment destinations, or inspecting legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
+Look up Bitcoin or Liquid addresses, public keys, and transactions from one search box. You get confirmed balance with live fiat (USD or BRL), script type, tx count, last activity, and whether the pubkey is exposed on-chain.
+
+Pending funds show up as a net unconfirmed amount with arrows for incoming and outgoing mempool activity.
+
+Transactions show output value, fee, confirmations, first-seen time in the mempool, time to confirm, and whether there is embedded data (OP_RETURN, inscriptions, runes, and similar).
+
+Lightning is supported too. You can open a channel by short ID or full ID, look up a Lightning address (`user@domain`), and generate a BOLT11 invoice with a QR and a copy button.
+
+Confirmed history can be exported to Excel (`.xlsx`). Addresses and pubkeys can also be shared as a QR code.
 
 ## How to use
 
-1. Open `index.html` in any modern browser, or serve the folder locally:
+Open `index.html`, or run a local server:
 
 ```bash
 python -m http.server 8080
 ```
 
-Then visit `http://localhost:8080`.
+Then go to `http://localhost:8080`.
 
-2. Paste a **Bitcoin/Liquid address**, **public key**, **transaction ID**, **Lightning channel ID**, or **Lightning address**.
-3. Click **Check**.
+Paste something into the search box and hit **Check**. The same field accepts Bitcoin/Liquid addresses, public keys, txids, Lightning channel IDs, and Lightning addresses.
 
-The same search box handles all input types. Classification order:
+How input is classified:
 
-1. 64-character hex → transaction ID  
-2. `user@domain` → Lightning address  
-3. Short or full channel ID → Lightning channel  
-4. Everything else → Bitcoin/Liquid address or public key
+1. 64-character hex is treated as a transaction ID
+2. `user@domain` is treated as a Lightning address
+3. Short or full channel IDs are treated as Lightning channels
+4. Everything else goes through the address / public key path
 
 ### Navigation bar
 
-The top bar runs across the full width of the page and includes:
+The top bar has a Bitcoin logo on the left (hover for live chain and market stats) and sound + language controls on the right. English and Brazilian Portuguese are available. Language and mute preferences stick in `localStorage`.
 
-| Control | Location | Purpose |
-|---|---|---|
-| **Bitcoin logo** | Left | Hover to see live chain and market stats (preloaded on page load) |
-| **Sound toggle** | Right | Mute or unmute transaction alert sounds |
-| **Language picker** | Right | Switch between English (US flag) and Portuguese (Brazil flag) |
+### Logo tooltip
 
-Language and sound preferences are saved in `localStorage`.
+Hover the logo for live stats: height, blocks to difficulty adjustment, blocks to halving, total supply, hashrate, difficulty, Mayer Multiple, MVRV, Fear & Greed, and BTC price.
 
-### Bitcoin logo tooltip
+Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Supply is computed locally from the halving schedule at the current height.
 
-Hover the Bitcoin logo in the navigation bar to see live on-chain and market data:
-
-| Line | Updates | Description |
-|---|---|---|
-| **Height** | Every 10 s | Current chain tip block height |
-| **Difficult Adjustment** | Every 10 s | Blocks remaining until the next difficulty retarget |
-| **Halving** | Every 10 s | Blocks remaining until the next halving |
-| **Supply** | Every 10 s | Total BTC supply at the current height (whole BTC, no decimals) |
-| **Hash Rate** | Every 10 s | Current network hashrate (e.g. `XX.XX ZH/s`) |
-| **Difficulty** | Every 10 s | Current network difficulty (e.g. `133.87T`) |
-| **Mayer Multiple** | Every 1 h | BTC price divided by the 200-day moving average |
-| **MVRV Ratio** | Every 1 h | Market value to realized value ratio |
-| **Fear & Greed** | Every 1 h | Crypto Fear & Greed Index (0–100) |
-| **Price** | Every 10 s | Current BTC spot price in USD or BRL |
-
-Hash rate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Total supply is computed locally from the halving schedule at the current block height.
-
-Mayer Multiple, MVRV, and Fear & Greed values are **color-coded**:
+Mayer Multiple, MVRV, and Fear & Greed are color coded:
 
 | Color | Meaning |
 |---|---|
-| **Green** | Cheap / undervalued (Mayer &lt; 1, MVRV &lt; 1, Fear) |
-| **Yellow** | Neutral (Mayer 1–2.4, MVRV 1–3.7, Neutral) |
-| **Red** | Expensive / overvalued (Mayer &gt; 2.4, MVRV &gt; 3.7, Greed) |
+| Green | Cheap / undervalued (Mayer < 1, MVRV < 1, Fear) |
+| Yellow | Neutral (Mayer 1 to 2.4, MVRV 1 to 3.7, Neutral) |
+| Red | Expensive / overvalued (Mayer > 2.4, MVRV > 3.7, Greed) |
 
-Market metrics are cached in `localStorage` for one hour so they survive page reloads and API rate limits.
+Market metrics are cached in `localStorage` for an hour so reloads and rate limits hurt less.
 
 ### Falling mempool blocks
 
-On page load, the app connects to a mempool WebSocket (mempool.space first, then public mirrors) and subscribes to global mempool activity. Each new mempool transaction spawns one falling block behind the main card.
+On load, the app connects to a mempool WebSocket (mempool.space first, then public mirrors) and listens to global mempool traffic. Each new mempool tx drops a small block behind the card.
 
-| Block type | Color | When |
-|---|---|---|
-| **Global mempool** | Green → red by fee rate (`fee / vsize`) | Every new transaction in the global mempool |
-| **Watched address** | Purple | A mempool transaction touches the address or pubkey currently being looked up |
+Global blocks go from green to red by fee rate (`fee / vsize`). If you are watching an address or pubkey, purple blocks show when a mempool tx touches that target.
 
-Fee colors follow a green-to-red scale by fee rate. Blocks are small squares (8–18 px) with a centered **₿** symbol. Up to 36 blocks can fall at once; additional transactions are queued and spawned steadily so the browser stays responsive. If the WebSocket drops or cannot connect within 5 seconds, the app rotates to the next WebSocket mirror and falls back to polling `/api/mempool/recent` every 2.5 seconds (also with provider fallbacks).
-
-While an address or public key lookup is active, the app also subscribes to that target over the same WebSocket so address-specific mempool events spawn purple blocks (and still trigger transaction sounds).
+Blocks are small squares (about 8 to 18 px) with a ₿ in the middle. At most 36 fall at once; the rest wait in a queue so the page stays smooth. If the socket dies or fails to connect within 5 seconds, the app rotates mirrors and falls back to polling `/api/mempool/recent` every 2.5 seconds.
 
 ### Supported inputs
 
@@ -98,104 +70,77 @@ While an address or public key lookup is active, the app also subscribes to that
 | Legacy P2PKH | starts with `1` | `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa` |
 | P2SH | starts with `3` | `3J98t1WpEZ73CNmYviecrnyiWrnqRhWNLy` |
 | Native SegWit P2WPKH | `bc1q`, 42 chars | `bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq` |
-| Native SegWit P2WSH | `bc1q`, 62 chars | `bc1q...` (longer bech32) |
+| Native SegWit P2WSH | `bc1q`, 62 chars | longer `bc1q...` bech32 |
 | Taproot P2TR | starts with `bc1p` | `bc1p...` |
 | Liquid addresses | `ex1...`, `lq1...`, confidential, etc. | Liquid Network addresses |
-| Compressed public key | 66 hex chars, `02` or `03` prefix | `02...` / `03...` |
-| Uncompressed public key | 130 hex chars, `04` prefix | `04...` |
+| Compressed public key | 66 hex chars, `02` or `03` | `02...` / `03...` |
+| Uncompressed public key | 130 hex chars, `04` | `04...` |
 | Transaction ID | 64 hex chars | `f4184fc596403b9d638783cf57adfe4c75c605f6356fbc9133855e5811f2e4fe6` |
 | Lightning address | `user@domain` | `hello@getalby.com` |
-| Lightning channel (short ID) | `blockxindexxoutput` or `block:index:output` | `811984x2037x0` |
-| Lightning channel (full ID) | 10–20 digit decimal ID | `892785849701564416` |
+| Lightning channel (short ID) | `blockxindexxoutput` or colons | `811984x2037x0` |
+| Lightning channel (full ID) | 10 to 20 digit decimal | `892785849701564416` |
 
 ### Transaction lookup
 
-When a txid is detected, the result panel shows:
+For a txid you get:
 
 | Field | Description |
 |---|---|
-| **Output value** | Total BTC in transaction outputs (large display) |
-| **Status** | Confirmed or Unconfirmed — unconfirmed status blinks slowly in yellow |
-| **Transaction ID** | Full txid (truncated to fit one line; hover for the full value) |
-| **First Seen Date** | When the transaction first entered the mempool |
-| **Fee** | `rate sat/vB × vsize vB = fee sats` on one line |
-| **Embedded data** | `Yes` or `No` — detects OP_RETURN, inscriptions, runes, BRC-20, images, and plain text |
-| **Confirmations** | `0` while unconfirmed; `chain tip − block height + 1` after confirmation |
-| **Confirmed Date** | Block time when confirmed (`N/A` while pending) |
-| **Time to confirmation** | Elapsed time from first seen to confirmation (`N/A` while pending) |
-| **Time since confirmation** | Live counter from confirmation time (`N/A` while pending) |
+| Output value | Total BTC in outputs (large display) |
+| Status | Confirmed or Unconfirmed (unconfirmed blinks yellow) |
+| Transaction ID | Full txid (shortened to one line; hover for the rest) |
+| First Seen Date | When it first hit the mempool |
+| Fee | `rate sat/vB × vsize vB = fee sats` |
+| Embedded data | Yes or No for OP_RETURN, inscriptions, runes, BRC-20, images, text, etc. |
+| Confirmations | `0` while pending; `tip − height + 1` after confirm |
+| Confirmed Date | Block time when confirmed (`N/A` while pending) |
+| Time to confirmation | From first seen to confirm (`N/A` while pending) |
+| Time since confirmation | Live counter from confirm time (`N/A` while pending) |
 
-First-seen time comes from mempool.space `GET /api/v1/transaction-times` while the transaction is still in (or recently left) the mempool. For older confirmed transactions where that endpoint returns `0`, the app falls back to `GET /api/v1/block/{hash}/tx/{txid}/audit` and reads the `firstSeen` field.
+First-seen time comes from `GET /api/v1/transaction-times`. For older confirmed txs that return `0`, the app tries `GET /api/v1/block/{hash}/tx/{txid}/audit` and reads `firstSeen`.
 
-Transaction data refreshes every **10 seconds**. A mechanical click sound plays when a watched transaction moves from unconfirmed to confirmed (respects the mute toggle).
+Tx data refreshes every 10 seconds. A click sound plays when a watched tx confirms (unless sounds are muted).
 
 ### Lightning channel lookup
 
-When a Lightning channel ID is detected, the result panel shows:
+For a channel ID you get capacity (BTC), open/closed status, short ID, full ID, network, capacity in sats, created/updated times when available, both nodes (alias + truncated pubkey), and funding/closing txs.
 
-| Field | Description |
-|---|---|
-| **Capacity** | Channel capacity in BTC (large display) |
-| **Status** | Open (green) or Closed (red) |
-| **Channel ID** | Short ID (e.g. `811984x2037x0`) |
-| **Full ID** | Compact integer channel ID used by the API |
-| **Network** | Lightning |
-| **Capacity (meta)** | Same capacity in sats |
-| **Created / Updated** | Channel lifecycle timestamps when available |
-| **Node A / Node B** | Alias and truncated public key for each side |
-| **Funding TX / Closing TX** | On-chain funding and closing transaction IDs (`N/A` if none) |
-
-Channel data comes from mempool.space `GET /api/v1/lightning/channels/{id}`. Short IDs are converted to full IDs client-side with:
+Data comes from mempool.space `GET /api/v1/lightning/channels/{id}`. Short IDs are turned into full IDs in the browser:
 
 ```
 fullId = (blockHeight << 40) | (txIndex << 16) | outputIndex
 ```
 
-(using `BigInt` so large channel IDs stay precise).
+`BigInt` is used so large IDs stay exact.
 
 ### Lightning address lookup
 
-When a Lightning Address (`user@domain`) is detected, the app fetches LNURL-pay metadata from:
+For `user@domain`, the app hits LNURL-pay:
 
 ```
 GET https://{domain}/.well-known/lnurlp/{user}
 ```
 
-The result panel shows:
+You see the full address (font shrinks so it stays on one line), description from metadata when present, domain, min/max sendable in sats, and whether comments are allowed.
 
-| Field | Description |
+The ⋯ menu on that result has:
+
+| Option | What it does |
 |---|---|
-| **Address** | Full Lightning address (large display; font shrinks / truncates to stay on one line) |
-| **Description** | `text/plain` from LNURL metadata when present |
-| **Network** | Lightning |
-| **Domain** | Payment host |
-| **Min / Max amount** | Sendable range in sats (from `minSendable` / `maxSendable` millisats) |
-| **Comments** | Whether the provider allows a memo, and the max length |
-
-After a successful Lightning address lookup, a **⋯** menu provides:
-
-| Option | Purpose |
-|---|---|
-| **Show address QR code** | QR code of the Lightning address string |
-| **Generate invoice** | Opens a form to request a BOLT11 invoice via LNURL-pay |
+| Show address QR code | QR of the Lightning address |
+| Generate invoice | LNURL-pay form that returns a BOLT11 invoice |
 
 #### Generate invoice
 
-1. Enter an amount in sats (optional field; must be within the provider’s min/max when set).
-2. Optionally add a comment if the provider allows it.
-3. Click **Generate**.
+Enter an amount in sats (empty by default; must sit inside the provider min/max when those exist). Add a comment if the host allows it. Hit **Generate**.
 
-The app calls the LNURL-pay callback with `amount` in millisats and shows a QR code of the returned BOLT11 invoice (`pr`). Below the QR, a **Copy invoice** button copies the invoice string (the full invoice text is not displayed).
+The app calls the LNURL callback with `amount` in millisats and shows a QR of the BOLT11 (`pr`). Under the QR there is a **Copy invoice** button. The full invoice string is not printed on screen; you copy it instead.
 
-**Notes:**
-
-- Invoice generation talks to the recipient’s LNURL provider from the browser. Some providers block cross-origin requests (CORS); those will fail with a clear error.
-- If the provider returns `status: "ERROR"` (for example *wallet is not properly configured*), that message is shown as-is — it comes from the provider, not from this app.
-- An address can appear valid at discovery time and still fail when creating an invoice (common when `maxSendable` is `0` or the wallet is incomplete).
+A few practical notes. Invoice requests go straight from the browser to the recipient’s provider, so CORS can block some hosts. If the provider returns `status: "ERROR"` (for example a wallet that is not fully set up), that reason is shown as-is. Discovery can succeed and invoice creation still fail when `maxSendable` is `0` or the wallet is incomplete.
 
 ## How the app works
 
-The application is a static single-page interface made of plain HTML, CSS, and JavaScript. All logic runs in the browser. There is no server-side code and no database.
+Everything is plain HTML, CSS, and JavaScript in the browser. No server code, no database.
 
 ```
 ┌─────────────┐     user input      ┌──────────────────┐
@@ -230,382 +175,301 @@ The application is a static single-page interface made of plain HTML, CSS, and J
 
 ### Lookup flow
 
-When the user clicks **Check**, `lookup.js` classifies the input and routes to the correct flow:
+When you click **Check**, `lookup.js` picks a path.
 
 **Transaction ID**
 
-1. **Detect txid** — `tx-utils.js` matches 64-character hex strings.
-2. **Fetch transaction** — mempool.space `GET /api/tx/{txid}` plus first-seen time from `GET /api/v1/transaction-times` (with block-audit fallback for confirmed txs).
-3. **Analyze outputs** — fee rate, virtual size, embedded-data detection, and confirmation count vs chain tip.
-4. **Render the transaction panel** and start live timers (confirmation elapsed time, confirmation count).
+`tx-utils.js` matches 64-char hex. The app fetches `GET /api/tx/{txid}`, first-seen time, fee rate, vsize, embedded data, and confirmation count, then renders the tx panel with live timers.
 
 **Lightning address**
 
-1. **Detect** `user@domain` via `lightning-utils.js`.
-2. **Fetch LNURL-pay info** from `https://{domain}/.well-known/lnurlp/{user}`.
-3. **Render** min/max amounts, description, and domain; enable QR + invoice actions.
+`lightning-utils.js` matches `user@domain`. The app loads LNURL-pay info from the domain and shows min/max, description, and domain, with QR and invoice actions enabled.
 
 **Lightning channel**
 
-1. **Detect** short ID (`811984x2037x0`) or full decimal ID.
-2. **Resolve** short IDs to full IDs with bit packing (`BigInt`).
-3. **Fetch** mempool.space `GET /api/v1/lightning/channels/{id}`.
-4. **Render** capacity, status, both nodes, and funding/closing txs.
+Short IDs like `811984x2037x0` or full decimal IDs are accepted. Short IDs are expanded with bit packing, then `GET /api/v1/lightning/channels/{id}` fills in capacity, status, nodes, and funding/closing txs.
 
 **Address / public key (Bitcoin or Liquid)**
 
-1. **Classify the input** — `pubkey-utils.js` / `liquid-utils.js` decide whether the string is a standard address or a hex-encoded secp256k1 public key, and which network to use.
-2. **Resolve the API target** — depending on the input type, the app queries a different endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
-3. **Fetch on-chain data** — three lightweight API calls:
-   - address or scripthash statistics (`chain_stats` + `mempool_stats`)
-   - the most recent confirmed transaction (`/txs/chain`, first page)
-   - BTC spot prices (`/v1/prices`)
-4. **Compute derived values** — confirmed BTC balance, fiat estimate, script type, exposed pubkey status, last transaction date, and formatted timestamps.
-5. **Render the result panel** and start live timers.
+`pubkey-utils.js` and `liquid-utils.js` figure out the type and network. The app loads address or scripthash stats, the latest confirmed tx page, and prices, then computes balance, fiat, script type, exposed pubkey, and last activity before rendering and starting timers. See [Public keys vs addresses](#public-keys-vs-addresses) for the P2PK path.
 
 ### Balance calculation
 
-The main balance display shows **confirmed** funds only:
+The big number is **confirmed** only:
 
 ```
 confirmed sats = chain_stats.funded_txo_sum − chain_stats.spent_txo_sum
 confirmed BTC = confirmed sats / 100,000,000
 ```
 
-Unconfirmed mempool balance is tracked separately and shown in the subtitle when mempool activity exists:
+Unconfirmed is separate and only shown when there is mempool activity:
 
 ```
 unconfirmed sats = mempool_stats.funded_txo_sum − mempool_stats.spent_txo_sum
 ```
 
-This is the **net** of all pending transactions combined — not just the last one. Examples:
+That is the **net** of all pending txs, not just the latest one:
 
 | Pending activity | Net unconfirmed shown |
 |---|---|
 | +0.1 BTC receive only | `0.10000000 BTC` |
 | −0.1 BTC spend only | `-0.10000000 BTC` |
 | +0.2 BTC in, −0.1 BTC out | `0.10000000 BTC` |
-| +0.1 BTC in, −0.1 BTC out | `0.00000000 BTC` (line still shown when both directions are active) |
+| +0.1 BTC in, −0.1 BTC out | `0.00000000 BTC` (still shown if both directions are active) |
 
-The fiat line is based on the **confirmed** balance using the live BTC spot price:
-
-- **English** → USD (from mempool.space `GET /api/v1/prices`)
-- **Portuguese** → BRL (from [CoinGecko](https://api.coingecko.com), since mempool.space does not provide BRL)
-
-Prices are merged into a local cache so BRL persists across the 10-second refresh cycle. If a price request fails, the last successful cached value is reused.
+Fiat uses the confirmed balance and live spot price. English uses USD from mempool.space `GET /api/v1/prices`. Portuguese uses BRL from [CoinGecko](https://api.coingecko.com) because mempool does not ship BRL. Prices land in a local cache so BRL survives the 10 second refresh loop. If a price call fails, the last good value stays up.
 
 ### Unconfirmed direction arrows
 
-When the unconfirmed balance line is visible, small triangles appear **before** the amount:
+When the unconfirmed line is visible:
 
 | Arrow | Meaning |
 |---|---|
-| **▲** green | Pending incoming funds (`mempool_stats.funded_txo_sum > 0`) |
-| **▼** red | Pending outgoing funds (`mempool_stats.spent_txo_sum > 0`) |
-| **Both** | Incoming and outgoing mempool activity at the same time |
+| ▲ green | Pending incoming (`funded_txo_sum > 0`) |
+| ▼ red | Pending outgoing (`spent_txo_sum > 0`) |
+| Both | In and out at the same time |
 
-Negative net balances are prefixed with a minus sign (e.g. `▼ -0.10000000 BTC unconfirmed`).
+Negative nets keep a minus sign, like `▼ -0.10000000 BTC unconfirmed`.
 
 ### Transaction sounds
 
-After the first successful lookup, auto-refresh can trigger audio alerts (requires a prior user click to unlock browser audio):
+After the first successful lookup (and after a user click unlocks audio), auto-refresh can play sounds:
 
 | Event | Sound |
 |---|---|
-| New unconfirmed transaction | Bell |
-| New confirmed transaction (address lookup) | Mechanical "done" click |
-| Watched transaction confirms (tx lookup) | Mechanical "done" click |
+| New unconfirmed tx | Bell |
+| New confirmed tx (address lookup) | Mechanical "done" click |
+| Watched tx confirms (tx lookup) | Mechanical "done" click |
 
-Use the bell button in the navigation bar to mute or unmute sounds. The preference is saved in `localStorage`.
+Mute with the bell in the nav. Preference is stored in `localStorage`.
 
 ### Exposed public key
 
-The **Exposed PubKey** field indicates whether the public key for this lookup is visible on-chain:
-
 | Input | Result |
 |---|---|
-| Public key hex (P2PK lookup) | **Yes** — the key itself is being viewed |
-| Address with spent outputs | **Yes** — spending reveals the pubkey in the transaction input |
-| Address that only received, never spent | **No** |
+| Public key hex (P2PK lookup) | Yes (you are looking at the key itself) |
+| Address with spent outputs | Yes (spend scripts reveal the pubkey) |
+| Address that only received, never spent | No |
 
 ### Live updates
 
-Timers keep the UI fresh after a successful lookup:
-
 | Timer | Interval | Purpose |
 |---|---|---|
-| Auto-refresh | 10 s | Silently re-fetches address or transaction data (with API fallbacks) |
-| Block height & price | 10 s | Updates chain tip, difficulty/halving countdown, supply, hashrate, network difficulty, and BTC spot price in the logo tooltip |
-| Market metrics | 1 h | Refreshes Mayer Multiple, MVRV Ratio, and Fear & Greed Index |
-| Time since last transaction | 1 s | Updates the human-readable elapsed time counter (address lookup) |
-| Time since confirmation | 1 s | Updates the elapsed time since a transaction was confirmed |
-| Confirmations | 10 s | Updates confirmation count as new blocks are mined |
-| Fiat / unconfirmed cycle | 10 s | When mempool activity exists, alternates the subtitle between fiat value and unconfirmed BTC (with a fade transition) |
+| Auto-refresh | 10 s | Re-fetch address or tx data quietly |
+| Block height and price | 10 s | Tip, difficulty/halving countdown, supply, hashrate, difficulty, price |
+| Market metrics | 1 h | Mayer Multiple, MVRV, Fear & Greed |
+| Time since last tx | 1 s | Address lookup elapsed counter |
+| Time since confirmation | 1 s | Tx lookup elapsed counter |
+| Confirmations | 10 s | Confirmation count as blocks come in |
+| Fiat / unconfirmed cycle | 10 s | Alternate subtitle between fiat and unconfirmed BTC |
 
-Auto-refresh uses a generation counter so stale responses from earlier lookups are ignored if the user submits a new input before the request finishes.
+A generation counter drops stale responses if you start a new lookup before the previous one finishes.
 
-### Action menu (address / public key results)
+### Action menus
 
-After a successful address or public key lookup, a **⋯** button appears in the top-right corner of the result card:
+On an on-chain address or pubkey result, the ⋯ menu offers a QR of the lookup value and Excel export of confirmed txs.
 
-| Option | Purpose |
-|---|---|
-| **Show address QR code** | Opens a black-and-white QR code for the looked-up address or public key |
-| **Export transactions to Excel** | Downloads a formatted `.xlsx` file (confirmed transactions only) |
-
-### Action menu (Lightning address results)
-
-After a successful Lightning address lookup, a separate **⋯** menu provides:
-
-| Option | Purpose |
-|---|---|
-| **Show address QR code** | QR code of the Lightning address (`user@domain`) |
-| **Generate invoice** | LNURL-pay form → BOLT11 QR + **Copy invoice** button |
+On a Lightning address result, the ⋯ menu offers a QR of `user@domain` and **Generate invoice** (BOLT11 QR plus copy button).
 
 ### QR code
 
-The QR option encodes the payload into a canvas using the `qrcode` library loaded from jsDelivr. The code is standard black on white with a minimal quiet zone.
+QR codes use the `qrcode` library from jsDelivr (black on white, small quiet zone).
 
-| Source | Payload | Below the QR |
+| Source | Payload | Under the QR |
 |---|---|---|
-| On-chain address / pubkey | Address or public key hex | — |
-| Lightning address | `user@domain` | — |
-| Generated invoice | BOLT11 string (`lnbc…`) | **Copy invoice** button (copies the invoice; text is not shown) |
+| On-chain address / pubkey | Address or pubkey hex | nothing |
+| Lightning address | `user@domain` | nothing |
+| Generated invoice | BOLT11 (`lnbc…`) | Copy invoice button |
 
 ### Excel export
 
-Export builds a workbook in the **language currently selected in the app** (English or Brazilian Portuguese).
+Export uses the language currently selected in the app. While it runs, a blurred overlay shows the phase, a progress bar, and a detail line such as `Transactions: 50 / 156`.
 
-While the file is generated, a blurred overlay shows the current step, a progress bar with percentage, and a detail line (for example `Transactions: 50 / 156`).
+Phases in short: snapshot the chain (height, time, tx count), page through confirmed `/txs/chain` batches of 25 up to that snapshot, then build and download the file.
 
-**Export phases:**
+Mempool first-seen time is left out on purpose. It is not on the Bitcoin chain and third-party APIs do not always have it. The summary sheet says so.
 
-1. Take a chain snapshot (current block height, time, and transaction count from the lookup)
-2. Fetch confirmed transactions from the chain (`/txs/chain`, paginated in batches of 25), stopping at the snapshot count and filtering out any transaction confirmed after the snapshot
-3. Build the spreadsheet and download
+Large histories are a bit of a workout (hundreds of requests), so export retries batches with backoff, keeps what it already fetched, slows down after rate limits, pauses briefly between pages, uses a 20 s timeout per provider, and sticks to the snapshot from when you started export.
 
-Mempool first-seen time is **not** included in the export. That timestamp is not recorded on the Bitcoin blockchain and is not always available from third-party services. The summary sheet includes a note explaining this.
+While retrying you will see something like “Connection issue, retrying…” with attempt count and how many txs are already kept.
 
-**Large exports (resilience):**
+**Transactions sheet** columns: Transaction ID, Timestamp Confirmed (UTC), Type (Received/Sent), Amount (BTC), Size (bytes), Size (vB), Fee (sat/vB), Fee (BTC), Block Height, Inputs Count, Outputs Count.
 
-Large address histories can require hundreds of API requests. Export is built to survive transient failures without starting over:
+**Summary sheet**: address or pubkey, total txs, total received, total sent, current confirmed balance, and the mempool first-seen note.
 
-| Mechanism | Behavior |
-|---|---|
-| **Per-batch retry** | Each paginated fetch retries up to 10 times with exponential backoff |
-| **Resume on retry** | Already-fetched transactions stay in memory; a failed batch retries from the same pagination cursor |
-| **Rate-limit backoff** | HTTP 429/502/503 responses use a longer initial delay before retry |
-| **Batch pacing** | 300 ms pause between successful batches to reduce provider rate limiting |
-| **Export timeout** | Export requests use a 20 s per-provider timeout (vs 5 s for normal lookups) |
-| **Chain snapshot** | Export uses the transaction count and chain tip from lookup time so the file matches what was on screen when export started |
-
-While retrying, the overlay shows *"Connection issue, retrying…"* with the attempt number and how many transactions have been kept so far.
-
-**Transactions sheet** — one row per confirmed transaction:
-
-| Column | Description |
-|---|---|
-| Transaction ID | Full txid |
-| Timestamp Confirmed (UTC) | Block time when confirmed (`YYYY-MM-DD HH:MM:SS`) |
-| Type | Received or Sent (color-coded in the Type column only) |
-| Amount (BTC) | Net amount for the address (positive = received, negative = sent) |
-| Size (bytes) | Serialized transaction size in bytes |
-| Size (vB) | Virtual size in vbytes (`vsize`, or `weight / 4`) |
-| Fee (sat/vB) | Fee rate (`fee / vsize`) |
-| Fee (BTC) | Transaction fee |
-| Block Height | Confirmation block height |
-| Inputs Count | Number of inputs |
-| Outputs Count | Number of outputs |
-
-**Summary sheet** — address or public key, total transactions, total received, total sent, current confirmed balance, and a note that mempool first-seen time is excluded because it is not on-chain data.
-
-Unconfirmed mempool transactions are **not** included in the export.
+Unconfirmed mempool txs are not exported.
 
 ### Internationalization
 
-`i18n.js` provides English and Brazilian Portuguese translations for all UI text. Switching language updates labels, error messages, date/time formatting, and the display currency (USD ↔ BRL) immediately. If results are already on screen, the panel refreshes in the new language without a new lookup.
+`i18n.js` covers English and Brazilian Portuguese. Switching language refreshes labels, errors, date formatting, and currency (USD ↔ BRL) right away. If something is already on screen, it re-renders in the new language without another lookup.
 
 ## Public keys vs addresses
 
-Bitcoin **addresses** and **public keys** are not the same thing, and they can hold different UTXO sets on-chain.
+Addresses and public keys are not the same thing on-chain, and they can hold different UTXO sets.
 
-| Concept | What it represents | How this app queries it |
+| Concept | What it is | How this app queries it |
 |---|---|---|
-| **Address** | A human-readable encoding of a specific output script (P2PKH, P2SH, SegWit, Taproot, etc.) | `GET /api/address/{address}` |
-| **Public key (P2PK)** | The raw secp256k1 key embedded directly in an output script | `GET /api/scripthash/{hash}` |
+| Address | Encoding of a specific output script | `GET /api/address/{address}` |
+| Public key (P2PK) | Raw secp256k1 key in the script | `GET /api/scripthash/{hash}` |
 
 ### Address lookups
 
-For strings that look like normal Bitcoin addresses, the app calls the standard address endpoint:
+Normal looking addresses hit:
 
 ```
 GET https://mempool.space/api/address/{address}
 GET https://mempool.space/api/address/{address}/txs/chain
 ```
 
-The address string is sent to the API as-is. Address type (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`) is inferred locally from prefix and length.
+Type (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`) is inferred locally from prefix and length.
 
 ### Public key lookups (P2PK)
 
-Early Bitcoin outputs — including the famous genesis block coinbase — were often locked with **P2PK** (*Pay to Public Key*), not P2PKH. The output script looks like:
+Early Bitcoin often used **P2PK** (Pay to Public Key), including the genesis coinbase. Script shape:
 
 ```
 OP_PUSHBYTES_65 <uncompressed pubkey> OP_CHECKSIG   (uncompressed, 04...)
 OP_PUSHBYTES_33 <compressed pubkey>   OP_CHECKSIG   (compressed, 02/03...)
 ```
 
-mempool.space does **not** accept a raw public key on the `/api/address/` route. Instead, the app builds the P2PK script, hashes it, and queries the **scripthash** endpoint.
+mempool.space does not take a raw pubkey on `/api/address/`. The app builds the P2PK script, hashes it, and uses scripthash.
 
-#### Step-by-step (what `pubkey-utils.js` does)
+What `pubkey-utils.js` does:
 
-1. **Detect** a hex public key:
-   - 66 characters starting with `02` or `03` → compressed
-   - 130 characters starting with `04` → uncompressed
-2. **Build the scriptPubKey** in hex:
-   - Uncompressed: `41` + pubkey + `ac`
-   - Compressed: `21` + pubkey + `ac`
-   (`41` / `21` are push opcodes for 65 / 33 bytes; `ac` is `OP_CHECKSIG`)
-3. **Hash the script** with SHA-256 (via the Web Crypto API) to produce the scripthash.
-4. **Query mempool.space**:
+1. Detect hex pubkey: 66 chars with `02`/`03` (compressed) or 130 chars with `04` (uncompressed)
+2. Build scriptPubKey hex: `41` + pubkey + `ac` (uncompressed) or `21` + pubkey + `ac` (compressed)
+3. SHA-256 the script with Web Crypto to get the scripthash
+4. Call:
    ```
    GET https://mempool.space/api/scripthash/{scripthash}
    GET https://mempool.space/api/scripthash/{scripthash}/txs/chain
    ```
 
-The result panel labels the field **Public Key:** and shows script type **P2PK**.
+The UI labels it **Public Key:** with type **P2PK**.
 
 #### Why balances can differ
 
-A public key and its derived P2PKH address (`1...`) are **different scripts** on-chain. UTXOs sent to one are not included in the other.
+A public key and its derived P2PKH address (`1...`) are different scripts. Coins sent to one do not show up on the other.
 
-Example — the genesis block uncompressed public key:
+Rough example with the genesis uncompressed key:
 
 | Lookup method | Endpoint | Typical balance |
 |---|---|---|
-| Public key (P2PK script) | `/api/scripthash/...` | ~50 BTC (coinbase + other P2PK outputs) |
-| Derived P2PKH address `1A1zP1...` | `/api/address/1A1zP1...` | ~57 BTC (includes unrelated donations to that address) |
+| Public key (P2PK script) | `/api/scripthash/...` | ~50 BTC (coinbase + other P2PK) |
+| Derived P2PKH `1A1zP1...` | `/api/address/1A1zP1...` | ~57 BTC (includes unrelated donations) |
 
-When you paste a public key, the app queries the **P2PK scripthash** so you see the balance locked directly to that key — not the balance of a derived `1...` address.
+Paste a public key and you get the P2PK scripthash balance, not the derived `1...` address balance.
 
 ## Data shown for each lookup
 
 ### Transaction
 
-See [Transaction lookup](#transaction-lookup) above for the full field list.
+See [Transaction lookup](#transaction-lookup).
 
 ### Balance (address / public key)
 
 | Field | Description |
 |---|---|
-| **BTC Balance** | Confirmed balance in BTC |
-| **Fiat / Unconfirmed** | Fiat value of the confirmed balance (USD or BRL). When mempool activity exists, alternates every 10 seconds between the fiat value and the net unconfirmed amount (with direction arrows) |
+| BTC Balance | Confirmed balance in BTC |
+| Fiat / Unconfirmed | Fiat of confirmed balance; with mempool activity it alternates every 10 s with net unconfirmed and arrows |
 
 ### Details (on-chain address / public key)
 
 | Field | Description |
 |---|---|
-| **Address / Public Key** | The value that was looked up (truncated with `...` to fit one line; hover for the full value) |
-| **Network** | Bitcoin or Liquid |
-| **Address Type** | `P2PK`, `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`, or Liquid script types |
-| **Exposed PubKey** | `Yes` if the public key is visible on-chain, `No` otherwise (`Confidential` on Liquid confidential addresses) |
-| **Transactions** | Total number of confirmed transactions |
-| **Last Transaction Date** | When the most recent confirmed transaction was mined |
-| **Time Since Last Transaction** | Live counter, updated every second |
+| Address / Public Key | Lookup value (shortened to one line; hover for full) |
+| Network | Bitcoin or Liquid |
+| Address Type | P2PK, P2PKH, P2SH, P2WPKH, P2WSH, P2TR, or Liquid types |
+| Exposed PubKey | Yes / No (Confidential on Liquid confidential addresses) |
+| Transactions | Confirmed tx count |
+| Last Transaction Date | Most recent confirmed tx time |
+| Time Since Last Transaction | Live counter |
 
-### Lightning channel / Lightning address
+### Lightning
 
-See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address lookup](#lightning-address-lookup) above for the full field lists.
+See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address lookup](#lightning-address-lookup).
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page structure, navigation bar, unified search form, on-chain / tx / Lightning result panels, action menus, QR overlay, invoice form, export progress overlay |
-| `styles.css` | Dark-themed styling, unconfirmed status blink animation, invoice/QR copy UI |
-| `app.js` | Thin orchestrator — initializes background refresh and binds UI events |
-| `api-client.js` | Mempool API client with 5 s timeout (20 s for export), multi-provider fallbacks |
-| `dom.js` | DOM element references (`AppDom`) |
-| `state.js` | Shared constants (`AppConstants`) and mutable app state (`AppState`) |
-| `format.js` | Date/time, BTC, fiat, and number formatting helpers |
-| `btc.js` | Balance math, address types, supply calculations, unconfirmed helpers |
-| `liquid-utils.js` | Liquid address detection, types, and amount labels |
-| `prices.js` | Fiat price fetching and caching |
-| `ui.js` | Error display, timers, and responsive text fitting |
-| `balance-sub.js` | Fiat / unconfirmed subtitle cycling with fade transition |
-| `tx-sounds.js` | Transaction sound detection for address and tx lookups |
-| `address-lookup.js` | Address/pubkey data loading, rendering, and auto-refresh |
-| `tx-lookup.js` | Transaction data loading, rendering, and auto-refresh |
-| `lightning-utils.js` | Lightning address / channel ID detection, ID conversion, LNURL helpers |
-| `lightning-lookup.js` | Lightning channel and address data loading and rendering |
-| `lightning-invoice.js` | LNURL-pay invoice form and BOLT11 request |
-| `lookup.js` | Input routing — txid, Lightning address/channel, address/pubkey |
-| `qr.js` | QR code overlay generation and invoice copy button |
-| `action-menu.js` | ⋯ menus for on-chain (QR, export) and Lightning address (QR, invoice) |
-| `tx-export.js` | Confirmed transaction export to Excel (ExcelJS), with retry/resume for large histories |
-| `chain-stats.js` | Block height, mining stats, market metrics, logo tooltip |
-| `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
-| `tx-utils.js` | Txid validation, embedded-data detection (OP_RETURN, inscriptions, runes, BRC-20, images) |
-| `i18n.js` | English / Brazilian Portuguese translations and language picker |
-| `sounds.js` | Web Audio transaction alert sounds and mute toggle |
-| `blocks-fx.js` | Mempool WebSocket (with mirror rotation), falling-block animation, fee-based colors |
-| `favicon.svg` | Bitcoin logo favicon |
+| `index.html` | Layout, search, result panels, menus, QR overlay, invoice form, export overlay |
+| `styles.css` | Dark theme, animations, invoice/QR UI |
+| `app.js` | Startup and event wiring |
+| `api-client.js` | Mempool client, timeouts, provider fallbacks |
+| `dom.js` | DOM refs (`AppDom`) |
+| `state.js` | Constants and shared state |
+| `format.js` | Dates, BTC, fiat, numbers |
+| `btc.js` | Balance math, address types, supply, unconfirmed helpers |
+| `liquid-utils.js` | Liquid detection, types, amount labels |
+| `prices.js` | Fiat price fetch and cache |
+| `ui.js` | Errors, timers, text fitting |
+| `balance-sub.js` | Fiat / unconfirmed subtitle cycle |
+| `tx-sounds.js` | Sound triggers for address and tx watches |
+| `address-lookup.js` | Address/pubkey load, render, auto-refresh |
+| `tx-lookup.js` | Tx load, render, auto-refresh |
+| `lightning-utils.js` | LN address/channel detection, ID conversion, LNURL helpers |
+| `lightning-lookup.js` | LN channel and address load/render |
+| `lightning-invoice.js` | Invoice form and BOLT11 request |
+| `lookup.js` | Input routing |
+| `qr.js` | QR overlay and invoice copy button |
+| `action-menu.js` | ⋯ menus |
+| `tx-export.js` | Excel export with retry/resume |
+| `chain-stats.js` | Height, mining, market metrics, logo tooltip |
+| `pubkey-utils.js` | Pubkey detection, P2PK script, scripthash |
+| `tx-utils.js` | Txid validation and embedded data detection |
+| `i18n.js` | EN / pt-BR strings and language picker |
+| `sounds.js` | Web Audio alerts and mute |
+| `blocks-fx.js` | Mempool WS, falling blocks, fee colors |
+| `favicon.svg` | Favicon |
 
 ## External dependencies
 
-| Dependency | Loaded from | Used for |
+| Dependency | From | Used for |
 |---|---|---|
-| [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr CDN | QR code generation |
-| [ExcelJS](https://www.npmjs.com/package/exceljs) | jsDelivr CDN | Excel export (.xlsx) |
-| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` (+ mirrors) | Primary on-chain data, Lightning channel data, block height, mining stats, and USD prices |
-| [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live global mempool and watched-address transaction events |
-| [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | `blockstream.info` | Fallback for address, tx, scripthash, and block-height endpoints; Liquid endpoints via `blockstream.info/liquid` |
-| LNURL-pay (per domain) | `https://{domain}/.well-known/lnurlp/{user}` | Lightning address discovery and invoice generation |
-| [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | `blockchain.info` | Fallback for network hashrate and difficulty |
-| [CoinGecko API](https://www.coingecko.com/en/api) | `api.coingecko.com` | BRL spot price, USD price fallback, Mayer Multiple fallback (200-day SMA) |
-| [CoinMetrics Community API](https://community-api.coinmetrics.io/) | `community-api.coinmetrics.io` | MVRV Ratio fallback (`CapMVRVCur`) |
-| [bitcoin-data.com API](https://bitcoin-data.com/) | `bitcoin-data.com` | Primary Mayer Multiple and MVRV data (rate-limited) |
-| [Alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | `api.alternative.me` | Crypto Fear & Greed Index |
-| Web Crypto API | Browser built-in | SHA-256 for scripthash calculation |
-| Web Audio API | Browser built-in | Transaction alert sounds |
+| [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr | QR codes |
+| [ExcelJS](https://www.npmjs.com/package/exceljs) | jsDelivr | Excel export |
+| [mempool.space API](https://mempool.space/docs/api/rest) | mempool.space (+ mirrors) | On-chain data, Lightning channels, height, mining, USD |
+| [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live mempool and watched address events |
+| [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | blockstream.info | Fallback chain endpoints; Liquid via `/liquid` |
+| LNURL-pay | `https://{domain}/.well-known/lnurlp/{user}` | Lightning addresses and invoices |
+| [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | blockchain.info | Hashrate / difficulty fallback |
+| [CoinGecko API](https://www.coingecko.com/en/api) | api.coingecko.com | BRL, USD fallback, Mayer fallback |
+| [CoinMetrics Community API](https://community-api.coinmetrics.io/) | community-api.coinmetrics.io | MVRV fallback |
+| [bitcoin-data.com API](https://bitcoin-data.com/) | bitcoin-data.com | Primary Mayer and MVRV |
+| [Alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | api.alternative.me | Fear & Greed |
+| Web Crypto API | Browser | SHA-256 for scripthash |
+| Web Audio API | Browser | Alert sounds |
 
 ### API fallbacks (`api-client.js`)
 
-Every mempool.space REST call goes through `api-client.js`, which enforces a **5-second timeout** per provider (20 seconds during Excel export). If a request fails or times out, the next provider is tried automatically. Export additionally retries failed batches with exponential backoff and resumes from the last successful page instead of restarting the fetch.
+REST calls go through `api-client.js` with a 5 second timeout per provider (20 seconds during export). On failure, the next provider is tried. Export also retries batches with backoff and resumes from the last good page.
 
-**REST provider chain (in order):**
+Provider order for REST: mempool.space, mempool.emzy.de, mempool.haus, mempool.jhoenicke.de, mempool.ninja, then blockstream.info for Esplora-compatible routes.
 
-1. mempool.space
-2. mempool.emzy.de
-3. mempool.haus
-4. mempool.jhoenicke.de
-5. mempool.ninja
-6. blockstream.info *(Esplora-compatible endpoints)*
-
-**WebSocket mirrors** rotate on disconnect or a 5-second connect timeout: mempool.space → emzy.de → haus → jhoenicke.de → ninja.
-
-**Endpoint-specific fallbacks:**
+WebSocket mirrors rotate the same way on disconnect or a 5 second connect timeout.
 
 | Endpoint | Primary | Fallback |
 |---|---|---|
-| Address / tx / scripthash / block height | Mempool provider chain | Blockstream Esplora |
-| Liquid address / tx / tip height | `blockstream.info/liquid`, `liquid.network` | — |
-| `/v1/lightning/channels/{id}` | Mempool provider chain (mempool-only) | — |
-| LNURL-pay discovery / invoice | Recipient domain (browser fetch) | — (CORS-dependent) |
-| `/v1/prices` (USD) | Mempool provider chain | CoinGecko |
-| `/v1/mining/hashrate/3d` | Mempool provider chain | blockchain.info |
-| `/v1/transaction-times` | Mempool provider chain | Block audit endpoint (confirmed txs) |
-| `/mempool/recent` | Mempool provider chain | — |
+| Address / tx / scripthash / block height | Mempool chain | Blockstream Esplora |
+| Liquid address / tx / tip height | blockstream.info/liquid, liquid.network | none |
+| `/v1/lightning/channels/{id}` | Mempool only | none |
+| LNURL-pay discovery / invoice | Recipient domain | none (CORS-dependent) |
+| `/v1/prices` (USD) | Mempool chain | CoinGecko |
+| `/v1/mining/hashrate/3d` | Mempool chain | blockchain.info |
+| `/v1/transaction-times` | Mempool chain | Block audit for confirmed txs |
+| `/mempool/recent` | Mempool chain | none |
 | WebSocket live events | Mempool WS mirrors | REST poll every 2.5 s |
 
 ### Market metrics fallbacks
 
-Mayer Multiple and MVRV are fetched from bitcoin-data.com first. If that API is unavailable (rate limit or network error), the app falls back automatically:
+Mayer Multiple and MVRV start at bitcoin-data.com. If that is down or rate limited:
 
-| Metric | Primary source | Fallback |
+| Metric | Primary | Fallback |
 |---|---|---|
-| Mayer Multiple | bitcoin-data.com | Computed locally from CoinGecko 200-day price history |
+| Mayer Multiple | bitcoin-data.com | CoinGecko 200-day SMA computed locally |
 | MVRV Ratio | bitcoin-data.com | CoinMetrics `CapMVRVCur` |
-| Fear & Greed | Alternative.me | — |
+| Fear & Greed | Alternative.me | none |
 
 ## Author
 
