@@ -156,7 +156,16 @@ async function lookupLightningAddress() {
   }
 }
 
-function performLookup() {
+/**
+ * @param {{ preserveBackTarget?: boolean }} [options]
+ */
+function performLookup(options = {}) {
+  const { preserveBackTarget = false } = options;
+
+  if (!preserveBackTarget) {
+    clearLookupBackTarget();
+  }
+
   const input = AppDom.addressInput.value.trim();
   if (!input) {
     showError(t("errorEmpty"));
@@ -181,9 +190,77 @@ function performLookup() {
   lookupAddress();
 }
 
+/**
+ * Fill the search field and run the same path as a manual Check click.
+ * Used by in-app links (e.g. channel funding / closing txids).
+ *
+ * @param {string} value
+ * @param {{ backTo?: { kind: "channel", input: string } | null }} [options]
+ *   When `backTo` is set, the transaction card can offer a control to return
+ *   to that prior lookup. Other navigations clear any existing back target.
+ */
+function navigateToSearch(value, options = {}) {
+  const input = String(value ?? "").trim();
+  if (!input || !AppDom.addressInput) return;
+
+  if (options.backTo?.kind === "channel" && options.backTo.input) {
+    AppState.lookupBackTarget = {
+      kind: "channel",
+      input: String(options.backTo.input).trim(),
+    };
+  } else {
+    clearLookupBackTarget();
+  }
+
+  AppDom.addressInput.value = input;
+  AppDom.addressInput.focus();
+  performLookup({ preserveBackTarget: Boolean(options.backTo) });
+}
+
+function clearLookupBackTarget() {
+  AppState.lookupBackTarget = null;
+  updateTxBackButton();
+}
+
+function getChannelBackTarget() {
+  const fromState =
+    AppState.currentLookupInput ||
+    AppState.lastAppliedLnData?.shortId ||
+    AppState.lastAppliedLnData?.channelId ||
+    AppState.lastAppliedLnData?.input;
+  if (!fromState) return null;
+  return { kind: "channel", input: String(fromState).trim() };
+}
+
+function goBackFromTransaction() {
+  const target = AppState.lookupBackTarget;
+  if (!target?.input) return;
+
+  const input = target.input;
+  clearLookupBackTarget();
+  navigateToSearch(input);
+}
+
+function updateTxBackButton() {
+  const btn = AppDom.txBackBtn;
+  if (!btn) return;
+
+  const show =
+    Boolean(AppState.lookupBackTarget?.kind === "channel") &&
+    Boolean(AppState.lookupBackTarget?.input) &&
+    Boolean(AppDom.txResultEl?.classList.contains("show"));
+
+  btn.hidden = !show;
+}
+
 window.resetLookupUiState = resetLookupUiState;
 window.lookupTransaction = lookupTransaction;
 window.lookupAddress = lookupAddress;
 window.lookupLightningChannel = lookupLightningChannel;
 window.lookupLightningAddress = lookupLightningAddress;
 window.performLookup = performLookup;
+window.navigateToSearch = navigateToSearch;
+window.clearLookupBackTarget = clearLookupBackTarget;
+window.getChannelBackTarget = getChannelBackTarget;
+window.goBackFromTransaction = goBackFromTransaction;
+window.updateTxBackButton = updateTxBackButton;

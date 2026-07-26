@@ -103,7 +103,9 @@ Tx data refreshes every 10 seconds. A click sound plays when a watched tx confir
 
 ### Lightning channel lookup
 
-For a channel ID you get capacity (BTC), open/closed status, short ID, full ID, network, capacity in sats, created/updated times when available, both nodes (alias + truncated pubkey), and funding/closing txs.
+For a channel ID you get capacity (BTC), open/closed status, short ID, full ID, network, capacity in sats, created/updated times when available, both nodes (alias + truncated pubkey), and funding/closing txs. Funding and closing transaction IDs are clickable: they fill the search box and open that transaction in the app (same path as typing the txid and hitting Check). Missing values stay as N/A and are not links.
+
+When you open a funding or closing tx from a channel, a **Back to channel** button appears above the “Created by” footer (outside the transaction details card). It restores the previous channel lookup in the search box and reloads that channel. A normal new search (typing and Check) clears the back target so the button does not appear on unrelated transactions.
 
 Data comes from mempool.space `GET /api/v1/lightning/channels/{id}`. Short IDs are turned into full IDs in the browser:
 
@@ -193,7 +195,7 @@ When you click **Check**, `lookup.js` picks a path.
 
 **Lightning channel**
 
-Short IDs like `811984x2037x0` or full decimal IDs are accepted. Short IDs are expanded with bit packing, then `GET /api/v1/lightning/channels/{id}` fills in capacity, status, nodes, and funding/closing txs.
+Short IDs like `811984x2037x0` or full decimal IDs are accepted. Short IDs are expanded with bit packing, then `GET /api/v1/lightning/channels/{id}` fills in capacity, status, nodes, and funding/closing txs. Funding/closing txids link into the normal transaction lookup path (`navigateToSearch`), with an optional back target so the UI can return to the channel.
 
 **Address / public key (Bitcoin or Liquid)**
 
@@ -417,7 +419,7 @@ See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address
 | `lightning-utils.js` | LN address/channel detection, ID conversion, LNURL helpers |
 | `lightning-lookup.js` | LN channel and address load/render |
 | `lightning-invoice.js` | Invoice form and BOLT11 request |
-| `lookup.js` | Input routing |
+| `lookup.js` | Input routing, in-app search navigation, channel back target |
 | `qr.js` | QR overlay and invoice copy button |
 | `action-menu.js` | ⋯ menus |
 | `tx-export.js` | Excel export with retry/resume |

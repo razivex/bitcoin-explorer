@@ -284,7 +284,13 @@ function applyTransactionData(data, { silent = false } = {}) {
   AppState.lastAppliedTxData = data;
   AppState.currentTxLookup = data.txid;
   AppDom.resultEl.classList.remove("show");
+  if (typeof hideLightningResults === "function") {
+    hideLightningResults();
+  }
   AppDom.txResultEl.classList.add("show");
+  if (typeof updateTxBackButton === "function") {
+    updateTxBackButton();
+  }
 }
 
 async function refreshTransactionSilently() {

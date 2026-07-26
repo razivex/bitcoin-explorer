@@ -174,20 +174,74 @@ function applyLightningChannelData(data, { silent = false } = {}) {
     data.nodeRight,
   );
   AppDom.lnChannelNodeRightEl.title = data.nodeRight?.public_key || "";
-  setTruncatableField(
-    AppDom.lnChannelFundingTxEl,
-    data.fundingTxid || t("na"),
-  );
-  setTruncatableField(
-    AppDom.lnChannelClosingTxEl,
-    data.closingTxid || t("na"),
-  );
+  setChannelTxLookupField(AppDom.lnChannelFundingTxEl, data.fundingTxid);
+  setChannelTxLookupField(AppDom.lnChannelClosingTxEl, data.closingTxid);
 
   if (!silent) {
     // Keep parity with other lookups for focus/visibility.
   }
 
   AppDom.lnChannelResultEl.classList.add("show");
+}
+
+/**
+ * Render a channel funding/closing txid as an in-app lookup link when valid.
+ * Clicking fills the search box and runs the transaction lookup.
+ */
+function setChannelTxLookupField(el, txid) {
+  if (!el) return;
+
+  const raw = txid == null ? "" : String(txid).trim();
+  const isTx = Boolean(raw) && isValidTxid(raw);
+
+  if (!isTx) {
+    clearChannelTxLookupLink(el);
+    setTruncatableField(el, raw || t("na"));
+    return;
+  }
+
+  const normalized = raw.toLowerCase();
+  setTruncatableField(el, normalized);
+  el.dataset.lookupValue = normalized;
+  el.classList.add("meta__lookup-link");
+  el.setAttribute("role", "link");
+  el.tabIndex = 0;
+}
+
+function clearChannelTxLookupLink(el) {
+  if (!el) return;
+  delete el.dataset.lookupValue;
+  el.classList.remove("meta__lookup-link");
+  el.removeAttribute("role");
+  el.removeAttribute("tabindex");
+}
+
+function bindLightningChannelTxLinks() {
+  const root = AppDom.lnChannelResultEl;
+  if (!root || root.dataset.txLinksBound === "1") return;
+  root.dataset.txLinksBound = "1";
+
+  const activate = (event) => {
+    const target = event.target?.closest?.(".meta__lookup-link");
+    if (!target || !root.contains(target)) return;
+
+    const value = target.dataset.lookupValue || target.dataset.fullValue;
+    if (!value || !isValidTxid(value)) return;
+
+    event.preventDefault();
+    const backTo =
+      typeof getChannelBackTarget === "function" ? getChannelBackTarget() : null;
+    navigateToSearch(value, backTo ? { backTo } : undefined);
+  };
+
+  root.addEventListener("click", activate);
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target?.closest?.(".meta__lookup-link");
+    if (!target || !root.contains(target)) return;
+    event.preventDefault();
+    activate(event);
+  });
 }
 
 function applyLightningAddressData(data, { silent = false } = {}) {
@@ -363,3 +417,4 @@ window.applyLightningAddressData = applyLightningAddressData;
 window.fitLnAddressTitleToWidth = fitLnAddressTitleToWidth;
 window.fitLnChannelCapacityToWidth = fitLnChannelCapacityToWidth;
 window.refitLightningTruncatableFields = refitLightningTruncatableFields;
+window.bindLightningChannelTxLinks = bindLightningChannelTxLinks;

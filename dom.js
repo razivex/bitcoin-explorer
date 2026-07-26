@@ -20,6 +20,7 @@ window.AppDom = {
   txMetaFeeEl: document.getElementById("txMetaFee"),
   txEmbeddedDataEl: document.getElementById("txEmbeddedData"),
   txMetaConfirmationsEl: document.getElementById("txMetaConfirmations"),
+  txBackBtn: document.getElementById("txBackBtn"),
   errorEl: document.getElementById("error"),
   balanceBtcEl: document.getElementById("balanceBtc"),
   balanceUnconfirmedEl: document.getElementById("balanceUnconfirmed"),

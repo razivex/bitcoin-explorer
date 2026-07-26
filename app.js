@@ -5,10 +5,18 @@ function initApp() {
 }
 
 function bindAppEvents() {
-  AppDom.lookupBtn.addEventListener("click", performLookup);
+  AppDom.lookupBtn.addEventListener("click", () => performLookup());
   bindActionMenuEvents();
   bindInvoiceOverlayEvents();
   bindQrEvents();
+  if (typeof bindLightningChannelTxLinks === "function") {
+    bindLightningChannelTxLinks();
+  }
+  AppDom.txBackBtn?.addEventListener("click", () => {
+    if (typeof goBackFromTransaction === "function") {
+      goBackFromTransaction();
+    }
+  });
   AppDom.qrOverlay.addEventListener("click", (event) => {
     if (event.target === AppDom.qrOverlay) {
       hideQrPanel();

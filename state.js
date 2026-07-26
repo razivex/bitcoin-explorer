@@ -44,6 +44,11 @@ window.AppState = {
   lastAppliedData: null,
   lastAppliedLnData: null,
   currentLnAddress: null,
+  /**
+   * When set, the tx card shows a back control to return to a prior lookup.
+   * @type {{ kind: "channel", input: string } | null}
+   */
+  lookupBackTarget: null,
   /** @type {"bitcoin" | "liquid" | "lightning" | null} */
   currentNetwork: null,
   cachedBlockHeight: null,
