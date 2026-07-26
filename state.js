@@ -6,6 +6,7 @@ window.AppConstants = {
   HALVING_INTERVAL: 210_000,
   BALANCE_BTC_MAX_FONT_PX: 32,
   BALANCE_BTC_MIN_FONT_PX: 11,
+  LN_ADDRESS_TITLE_MIN_FONT_PX: 9,
 };
 
 window.AppState = {
@@ -41,7 +42,9 @@ window.AppState = {
     confirmed: false,
   },
   lastAppliedData: null,
-  /** @type {"bitcoin" | "liquid" | null} */
+  lastAppliedLnData: null,
+  currentLnAddress: null,
+  /** @type {"bitcoin" | "liquid" | "lightning" | null} */
   currentNetwork: null,
   cachedBlockHeight: null,
   cachedLiquidBlockHeight: null,

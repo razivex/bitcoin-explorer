@@ -425,7 +425,8 @@ button:disabled {
 
 .result.show { display: block; }
 
-.tx-result {
+.tx-result,
+#lnChannelResult {
   padding: 18px;
 }
 
@@ -538,6 +539,7 @@ button:disabled {
 
 .qr-modal {
   width: min(464px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
   padding: 1px;
   background: #ffffff;
   border-radius: 12px;
@@ -548,11 +550,221 @@ button:disabled {
   line-height: 0;
 }
 
+.qr-modal--with-copy {
+  line-height: normal;
+}
+
 .qr-modal canvas {
   display: block;
   width: 100%;
   height: auto;
   background: #ffffff;
+}
+
+.qr-modal__copy-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px 12px;
+  background: #ffffff;
+  border-top: 1px solid #e6e8ec;
+}
+
+.qr-modal__copy-bar[hidden] {
+  display: none;
+}
+
+.qr-modal__copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #d0d5dd;
+  background: #f7f8fa;
+  color: #111820;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.qr-modal__copy-btn:hover,
+.qr-modal__copy-btn:focus {
+  background: #fff4e5;
+  border-color: #f7931a;
+  color: #b86a12;
+  outline: none;
+}
+
+.qr-modal__copy-btn.is-copied {
+  background: #e8faf0;
+  border-color: #3ddc84;
+  color: #147a45;
+}
+
+.qr-modal__copy-icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.qr-modal__copy-label {
+  line-height: 1.2;
+}
+
+.ln-status--open {
+  color: #3ddc84;
+  font-weight: 600;
+}
+
+.ln-status--closed {
+  color: #ff6b7a;
+  font-weight: 600;
+}
+
+.invoice-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 12, 18, 0.82);
+  backdrop-filter: blur(4px);
+  z-index: 105;
+  cursor: pointer;
+}
+
+.invoice-overlay[hidden] {
+  display: none;
+}
+
+.invoice-modal {
+  width: min(420px, calc(100vw - 48px));
+  padding: 22px 20px 18px;
+  border-radius: 14px;
+  border: 1px solid #2d3a4d;
+  background: #1a2332;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  cursor: default;
+}
+
+.invoice-modal__title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  color: #f7931a;
+}
+
+.invoice-modal__address {
+  margin: 0 0 16px;
+  color: #9aa7b8;
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+
+.invoice-modal label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  color: #b8c4d4;
+}
+
+.invoice-modal input {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border: 1px solid #3a4d66;
+  border-radius: 10px;
+  background: #0f1419;
+  color: #fff;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.invoice-modal input:focus {
+  border-color: #f7931a;
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.2);
+}
+
+/* Hide number input spinner arrows (Chrome, Safari, Edge, Firefox). */
+.invoice-modal__amount {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.invoice-modal__amount::-webkit-outer-spin-button,
+.invoice-modal__amount::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.invoice-modal__hint {
+  margin: 0 0 14px;
+  color: #7f8fa3;
+  font-size: 0.8rem;
+}
+
+.invoice-modal__comment-row {
+  margin-bottom: 8px;
+}
+
+.invoice-modal__comment-row[hidden] {
+  display: none;
+}
+
+.invoice-modal__error {
+  margin: 0 0 12px;
+  color: #ff6b7a;
+  font-size: 0.85rem;
+}
+
+.invoice-modal__error[hidden] {
+  display: none;
+}
+
+.invoice-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.invoice-modal__btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.invoice-modal__btn--secondary {
+  background: transparent;
+  border-color: #3a4d66;
+  color: #b8c4d4;
+}
+
+.invoice-modal__btn--secondary:hover {
+  border-color: #5a6f8c;
+  color: #e7e9ea;
+}
+
+.invoice-modal__btn--primary {
+  background: #f7931a;
+  color: #111820;
+}
+
+.invoice-modal__btn--primary:hover {
+  background: #ffaa33;
+}
+
+.invoice-modal__btn--primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .export-overlay {
@@ -655,6 +867,16 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   line-height: 1.15;
+}
+
+#lnAddressTitle {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  word-break: keep-all;
 }
 
 .balance-unconfirmed {

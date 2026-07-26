@@ -6,10 +6,18 @@ function resetLookupUiState() {
   hideQrPanel();
   hideActionMenu();
   hideExportOverlay();
+  if (typeof hideInvoiceOverlay === "function") {
+    hideInvoiceOverlay();
+  }
+  if (typeof hideLightningResults === "function") {
+    hideLightningResults();
+  }
   AppState.currentLookupInput = null;
   AppState.currentNetwork = null;
   AppState.lastTxTimestamp = null;
   AppState.lastAppliedData = null;
+  AppState.lastAppliedLnData = null;
+  AppState.currentLnAddress = null;
   clearWatchedLookup();
   resetTxWatchState();
 }
@@ -63,6 +71,7 @@ async function lookupAddress() {
 
     applyAddressData(data, { silent: false });
     AppDom.txResultEl.classList.remove("show");
+    hideLightningResults();
     // Address mempool watch uses Bitcoin WebSocket providers only.
     if (data.network !== "liquid") {
       setWatchedLookup(data.watchTarget);
@@ -87,6 +96,66 @@ async function lookupAddress() {
   }
 }
 
+async function lookupLightningChannel() {
+  const generation = ++AppState.lookupGeneration;
+  ++AppState.txLookupGeneration;
+
+  clearError();
+  resetLookupUiState();
+
+  const input = AppDom.addressInput.value.trim();
+
+  AppDom.lookupBtn.disabled = true;
+  AppDom.lookupBtn.textContent = t("loading");
+
+  try {
+    const data = await loadLightningChannelData(input);
+    if (generation !== AppState.lookupGeneration) return;
+
+    applyLightningChannelData(data, { silent: false });
+  } catch (err) {
+    if (generation === AppState.lookupGeneration) {
+      showError(t("errorLnChannelFetch"));
+    }
+    console.error(err);
+  } finally {
+    if (generation === AppState.lookupGeneration) {
+      AppDom.lookupBtn.disabled = false;
+      AppDom.lookupBtn.textContent = t("check");
+    }
+  }
+}
+
+async function lookupLightningAddress() {
+  const generation = ++AppState.lookupGeneration;
+  ++AppState.txLookupGeneration;
+
+  clearError();
+  resetLookupUiState();
+
+  const input = AppDom.addressInput.value.trim();
+
+  AppDom.lookupBtn.disabled = true;
+  AppDom.lookupBtn.textContent = t("loading");
+
+  try {
+    const data = await loadLightningAddressData(input);
+    if (generation !== AppState.lookupGeneration) return;
+
+    applyLightningAddressData(data, { silent: false });
+  } catch (err) {
+    if (generation === AppState.lookupGeneration) {
+      showError(t("errorLnAddressFetch"));
+    }
+    console.error(err);
+  } finally {
+    if (generation === AppState.lookupGeneration) {
+      AppDom.lookupBtn.disabled = false;
+      AppDom.lookupBtn.textContent = t("check");
+    }
+  }
+}
+
 function performLookup() {
   const input = AppDom.addressInput.value.trim();
   if (!input) {
@@ -99,10 +168,22 @@ function performLookup() {
     return;
   }
 
+  if (isLightningAddress(input)) {
+    lookupLightningAddress();
+    return;
+  }
+
+  if (isLightningChannelId(input)) {
+    lookupLightningChannel();
+    return;
+  }
+
   lookupAddress();
 }
 
 window.resetLookupUiState = resetLookupUiState;
 window.lookupTransaction = lookupTransaction;
 window.lookupAddress = lookupAddress;
+window.lookupLightningChannel = lookupLightningChannel;
+window.lookupLightningAddress = lookupLightningAddress;
 window.performLookup = performLookup;

@@ -3,6 +3,9 @@ function showError(message) {
   AppDom.errorEl.classList.add("show");
   AppDom.resultEl.classList.remove("show");
   AppDom.txResultEl.classList.remove("show");
+  if (typeof hideLightningResults === "function") {
+    hideLightningResults();
+  }
 }
 
 function clearError() {

@@ -7,6 +7,8 @@ function initApp() {
 function bindAppEvents() {
   AppDom.lookupBtn.addEventListener("click", performLookup);
   bindActionMenuEvents();
+  bindInvoiceOverlayEvents();
+  bindQrEvents();
   AppDom.qrOverlay.addEventListener("click", (event) => {
     if (event.target === AppDom.qrOverlay) {
       hideQrPanel();
@@ -19,6 +21,7 @@ function bindAppEvents() {
   window.addEventListener("resize", () => {
     fitMetaAddressToWidth();
     fitBalanceBtcToWidth();
+    refitLightningTruncatableFields();
 
     if (AppState.currentTxLookup && AppDom.txResultEl.classList.contains("show")) {
       setTxIdDisplay(AppState.currentTxLookup);
@@ -44,6 +47,24 @@ function bindAppEvents() {
 
       if (AppState.lastAppliedData && AppDom.resultEl.classList.contains("show")) {
         applyAddressData(AppState.lastAppliedData, { silent: true });
+      }
+
+      if (
+        AppState.lastAppliedLnData?.kind === "channel" &&
+        AppDom.lnChannelResultEl?.classList.contains("show")
+      ) {
+        applyLightningChannelData(AppState.lastAppliedLnData, { silent: true });
+      }
+
+      if (
+        AppState.lastAppliedLnData?.kind === "address" &&
+        AppDom.lnAddressResultEl?.classList.contains("show")
+      ) {
+        applyLightningAddressData(AppState.lastAppliedLnData, { silent: true });
+      }
+
+      if (AppDom.invoiceGenerateBtn && !AppDom.invoiceGenerateBtn.disabled) {
+        AppDom.invoiceGenerateBtn.textContent = t("lnInvoiceGenerate");
       }
     };
 
