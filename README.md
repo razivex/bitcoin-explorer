@@ -1,18 +1,21 @@
 # Bitcoin Explorer
 
-A lightweight, client-side web app to look up Bitcoin balances and activity directly from the timechain. No backend, no accounts, and no build step — open `index.html` in a browser or serve the folder locally.
+A lightweight, client-side web app for real-time data on **on-chain Bitcoin**, **Lightning**, and **Liquid**. No backend, no accounts, and no build step — open `index.html` in a browser or serve the folder locally.
 
 ## What it is used for
 
-- **Look up any Bitcoin address, public key, or transaction** in one search box
+- **Look up Bitcoin or Liquid addresses, public keys, or transactions** in one search box
 - **Check confirmed balance** and see the live fiat value (USD or BRL)
 - **Review on-chain activity** — script type, transaction count, last transaction date, and whether the pubkey is exposed
 - **Track pending funds** while waiting for confirmation — net unconfirmed amount with incoming/outgoing arrows
 - **Inspect a transaction** — output value, fee, confirmations, mempool first-seen time, time to confirmation, and embedded data (OP_RETURN, inscriptions, runes, etc.)
+- **Look up Lightning channels** by short ID or full channel ID
+- **Look up Lightning addresses** (`user@domain`) via LNURL-pay discovery
+- **Generate Lightning invoices** from a Lightning address and share them with a QR code + copy button
 - **Export confirmed transaction history** to Excel (`.xlsx`) with a summary sheet
 - **Share an address or public key** via a scannable QR code
 
-Useful for verifying a donation address, checking a wallet balance, exporting records for accounting, or exploring legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
+Useful for verifying a donation address, checking a wallet balance, exporting records for accounting, exploring Lightning payment destinations, or inspecting legacy P2PK outputs (such as early coinbase rewards) without opening a full block explorer.
 
 ## How to use
 
@@ -24,10 +27,15 @@ python -m http.server 8080
 
 Then visit `http://localhost:8080`.
 
-2. Paste a **Bitcoin address**, **public key in hex**, or **transaction ID** (64-character hex).
+2. Paste a **Bitcoin/Liquid address**, **public key**, **transaction ID**, **Lightning channel ID**, or **Lightning address**.
 3. Click **Check**.
 
-The same search box handles all input types. A 64-character hex string is treated as a txid; everything else is resolved as an address or public key.
+The same search box handles all input types. Classification order:
+
+1. 64-character hex → transaction ID  
+2. `user@domain` → Lightning address  
+3. Short or full channel ID → Lightning channel  
+4. Everything else → Bitcoin/Liquid address or public key
 
 ### Navigation bar
 
@@ -92,9 +100,13 @@ While an address or public key lookup is active, the app also subscribes to that
 | Native SegWit P2WPKH | `bc1q`, 42 chars | `bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq` |
 | Native SegWit P2WSH | `bc1q`, 62 chars | `bc1q...` (longer bech32) |
 | Taproot P2TR | starts with `bc1p` | `bc1p...` |
+| Liquid addresses | `ex1...`, `lq1...`, confidential, etc. | Liquid Network addresses |
 | Compressed public key | 66 hex chars, `02` or `03` prefix | `02...` / `03...` |
 | Uncompressed public key | 130 hex chars, `04` prefix | `04...` |
 | Transaction ID | 64 hex chars | `f4184fc596403b9d638783cf57adfe4c75c605f6356fbc9133855e5811f2e4fe6` |
+| Lightning address | `user@domain` | `hello@getalby.com` |
+| Lightning channel (short ID) | `blockxindexxoutput` or `block:index:output` | `811984x2037x0` |
+| Lightning channel (full ID) | 10–20 digit decimal ID | `892785849701564416` |
 
 ### Transaction lookup
 
@@ -117,6 +129,70 @@ First-seen time comes from mempool.space `GET /api/v1/transaction-times` while t
 
 Transaction data refreshes every **10 seconds**. A mechanical click sound plays when a watched transaction moves from unconfirmed to confirmed (respects the mute toggle).
 
+### Lightning channel lookup
+
+When a Lightning channel ID is detected, the result panel shows:
+
+| Field | Description |
+|---|---|
+| **Capacity** | Channel capacity in BTC (large display) |
+| **Status** | Open (green) or Closed (red) |
+| **Channel ID** | Short ID (e.g. `811984x2037x0`) |
+| **Full ID** | Compact integer channel ID used by the API |
+| **Network** | Lightning |
+| **Capacity (meta)** | Same capacity in sats |
+| **Created / Updated** | Channel lifecycle timestamps when available |
+| **Node A / Node B** | Alias and truncated public key for each side |
+| **Funding TX / Closing TX** | On-chain funding and closing transaction IDs (`N/A` if none) |
+
+Channel data comes from mempool.space `GET /api/v1/lightning/channels/{id}`. Short IDs are converted to full IDs client-side with:
+
+```
+fullId = (blockHeight << 40) | (txIndex << 16) | outputIndex
+```
+
+(using `BigInt` so large channel IDs stay precise).
+
+### Lightning address lookup
+
+When a Lightning Address (`user@domain`) is detected, the app fetches LNURL-pay metadata from:
+
+```
+GET https://{domain}/.well-known/lnurlp/{user}
+```
+
+The result panel shows:
+
+| Field | Description |
+|---|---|
+| **Address** | Full Lightning address (large display; font shrinks / truncates to stay on one line) |
+| **Description** | `text/plain` from LNURL metadata when present |
+| **Network** | Lightning |
+| **Domain** | Payment host |
+| **Min / Max amount** | Sendable range in sats (from `minSendable` / `maxSendable` millisats) |
+| **Comments** | Whether the provider allows a memo, and the max length |
+
+After a successful Lightning address lookup, a **⋯** menu provides:
+
+| Option | Purpose |
+|---|---|
+| **Show address QR code** | QR code of the Lightning address string |
+| **Generate invoice** | Opens a form to request a BOLT11 invoice via LNURL-pay |
+
+#### Generate invoice
+
+1. Enter an amount in sats (optional field; must be within the provider’s min/max when set).
+2. Optionally add a comment if the provider allows it.
+3. Click **Generate**.
+
+The app calls the LNURL-pay callback with `amount` in millisats and shows a QR code of the returned BOLT11 invoice (`pr`). Below the QR, a **Copy invoice** button copies the invoice string (the full invoice text is not displayed).
+
+**Notes:**
+
+- Invoice generation talks to the recipient’s LNURL provider from the browser. Some providers block cross-origin requests (CORS); those will fail with a clear error.
+- If the provider returns `status: "ERROR"` (for example *wallet is not properly configured*), that message is shown as-is — it comes from the provider, not from this app.
+- An address can appear valid at discovery time and still fail when creating an invoice (common when `maxSendable` is `0` or the wallet is incomplete).
+
 ## How the app works
 
 The application is a static single-page interface made of plain HTML, CSS, and JavaScript. All logic runs in the browser. There is no server-side code and no database.
@@ -134,37 +210,27 @@ The application is a static single-page interface made of plain HTML, CSS, and J
              │ route input │          │    .js      │          │    .js      │
              └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
                     │                        │                        │
-         ┌──────────┴──────────┐             │                        │
-         ▼                     ▼             ▼                        ▼
-  ┌──────────────┐      ┌──────────────┐  ┌──────────────┐      ┌──────────────┐
-  │address-lookup│      │  tx-lookup   │  │ api-client   │◄─────│ mempool WS   │
-  │     .js      │      │     .js      │  │     .js      │      │ + REST APIs  │
-  └──────────────┘      └──────────────┘  └──────────────┘      └──────────────┘
-         │                     │                  ▲
-         └──────────┬──────────┘                  │
-                    ▼                             │
-    ┌─────────────────────────────────────────────┴──────────────────┐
-    │ dom.js · state.js · format.js · btc.js · prices.js · ui.js     │
-    │ balance-sub.js · tx-sounds.js · qr.js · action-menu.js        │
-    │ tx-export.js · pubkey-utils.js · tx-utils.js · i18n.js        │
-    │ sounds.js                                                      │
-    └────────────────────────────────────────────────────────────────┘
+    ┌───────────────┼───────────────┬────────┴───┐                    │
+    ▼               ▼               ▼            ▼                    ▼
+┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐      ┌──────────────┐
+│ address- │ │tx-lookup │ │lightning-    │ │api-client│◄─────│ mempool WS   │
+│ lookup   │ │   .js    │ │lookup.js     │ │   .js    │      │ + REST APIs  │
+└──────────┘ └──────────┘ └──────────────┘ └──────────┘      └──────────────┘
+    │               │               │              ▲
+    └───────────────┴───────┬───────┘              │
+                            ▼                      │
+    ┌──────────────────────────────────────────────┴──────────────────┐
+    │ dom.js · state.js · format.js · btc.js · prices.js · ui.js      │
+    │ balance-sub.js · tx-sounds.js · qr.js · action-menu.js         │
+    │ lightning-utils.js · lightning-invoice.js · liquid-utils.js    │
+    │ tx-export.js · pubkey-utils.js · tx-utils.js · i18n.js         │
+    │ sounds.js                                                       │
+    └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Lookup flow
 
 When the user clicks **Check**, `lookup.js` classifies the input and routes to the correct flow:
-
-**Address / public key**
-
-1. **Classify the input** — `pubkey-utils.js` decides whether the string is a standard address or a hex-encoded secp256k1 public key.
-2. **Resolve the API target** — depending on the input type, the app queries a different mempool.space endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
-3. **Fetch on-chain data** — three lightweight API calls:
-   - address or scripthash statistics (`chain_stats` + `mempool_stats`)
-   - the most recent confirmed transaction (`/txs/chain`, first page)
-   - BTC spot prices (`/v1/prices`)
-4. **Compute derived values** — confirmed BTC balance, fiat estimate, script type, exposed pubkey status, last transaction date, and formatted timestamps.
-5. **Render the result panel** and start live timers.
 
 **Transaction ID**
 
@@ -172,6 +238,30 @@ When the user clicks **Check**, `lookup.js` classifies the input and routes to t
 2. **Fetch transaction** — mempool.space `GET /api/tx/{txid}` plus first-seen time from `GET /api/v1/transaction-times` (with block-audit fallback for confirmed txs).
 3. **Analyze outputs** — fee rate, virtual size, embedded-data detection, and confirmation count vs chain tip.
 4. **Render the transaction panel** and start live timers (confirmation elapsed time, confirmation count).
+
+**Lightning address**
+
+1. **Detect** `user@domain` via `lightning-utils.js`.
+2. **Fetch LNURL-pay info** from `https://{domain}/.well-known/lnurlp/{user}`.
+3. **Render** min/max amounts, description, and domain; enable QR + invoice actions.
+
+**Lightning channel**
+
+1. **Detect** short ID (`811984x2037x0`) or full decimal ID.
+2. **Resolve** short IDs to full IDs with bit packing (`BigInt`).
+3. **Fetch** mempool.space `GET /api/v1/lightning/channels/{id}`.
+4. **Render** capacity, status, both nodes, and funding/closing txs.
+
+**Address / public key (Bitcoin or Liquid)**
+
+1. **Classify the input** — `pubkey-utils.js` / `liquid-utils.js` decide whether the string is a standard address or a hex-encoded secp256k1 public key, and which network to use.
+2. **Resolve the API target** — depending on the input type, the app queries a different endpoint (see [Public keys vs addresses](#public-keys-vs-addresses) below).
+3. **Fetch on-chain data** — three lightweight API calls:
+   - address or scripthash statistics (`chain_stats` + `mempool_stats`)
+   - the most recent confirmed transaction (`/txs/chain`, first page)
+   - BTC spot prices (`/v1/prices`)
+4. **Compute derived values** — confirmed BTC balance, fiat estimate, script type, exposed pubkey status, last transaction date, and formatted timestamps.
+5. **Render the result panel** and start live timers.
 
 ### Balance calculation
 
@@ -263,9 +353,24 @@ After a successful address or public key lookup, a **⋯** button appears in the
 | **Show address QR code** | Opens a black-and-white QR code for the looked-up address or public key |
 | **Export transactions to Excel** | Downloads a formatted `.xlsx` file (confirmed transactions only) |
 
+### Action menu (Lightning address results)
+
+After a successful Lightning address lookup, a separate **⋯** menu provides:
+
+| Option | Purpose |
+|---|---|
+| **Show address QR code** | QR code of the Lightning address (`user@domain`) |
+| **Generate invoice** | LNURL-pay form → BOLT11 QR + **Copy invoice** button |
+
 ### QR code
 
-The QR option encodes the original lookup value (address or public key hex) into a canvas using the `qrcode` library loaded from jsDelivr. The code is standard black on white with a minimal quiet zone.
+The QR option encodes the payload into a canvas using the `qrcode` library loaded from jsDelivr. The code is standard black on white with a minimal quiet zone.
+
+| Source | Payload | Below the QR |
+|---|---|---|
+| On-chain address / pubkey | Address or public key hex | — |
+| Lightning address | `user@domain` | — |
+| Generated invoice | BOLT11 string (`lnbc…`) | **Copy invoice** button (copies the invoice; text is not shown) |
 
 ### Excel export
 
@@ -395,38 +500,47 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 | **BTC Balance** | Confirmed balance in BTC |
 | **Fiat / Unconfirmed** | Fiat value of the confirmed balance (USD or BRL). When mempool activity exists, alternates every 10 seconds between the fiat value and the net unconfirmed amount (with direction arrows) |
 
-### Details
+### Details (on-chain address / public key)
 
 | Field | Description |
 |---|---|
 | **Address / Public Key** | The value that was looked up (truncated with `...` to fit one line; hover for the full value) |
-| **Address Type** | `P2PK`, `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, or `P2TR` |
-| **Exposed PubKey** | `Yes` if the public key is visible on-chain, `No` otherwise |
+| **Network** | Bitcoin or Liquid |
+| **Address Type** | `P2PK`, `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`, or Liquid script types |
+| **Exposed PubKey** | `Yes` if the public key is visible on-chain, `No` otherwise (`Confidential` on Liquid confidential addresses) |
 | **Transactions** | Total number of confirmed transactions |
 | **Last Transaction Date** | When the most recent confirmed transaction was mined |
 | **Time Since Last Transaction** | Live counter, updated every second |
+
+### Lightning channel / Lightning address
+
+See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address lookup](#lightning-address-lookup) above for the full field lists.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page structure, navigation bar, unified search form, address/transaction result panels, action menu, QR overlay, export progress overlay |
-| `styles.css` | Dark-themed styling, unconfirmed status blink animation |
+| `index.html` | Page structure, navigation bar, unified search form, on-chain / tx / Lightning result panels, action menus, QR overlay, invoice form, export progress overlay |
+| `styles.css` | Dark-themed styling, unconfirmed status blink animation, invoice/QR copy UI |
 | `app.js` | Thin orchestrator — initializes background refresh and binds UI events |
 | `api-client.js` | Mempool API client with 5 s timeout (20 s for export), multi-provider fallbacks |
 | `dom.js` | DOM element references (`AppDom`) |
 | `state.js` | Shared constants (`AppConstants`) and mutable app state (`AppState`) |
 | `format.js` | Date/time, BTC, fiat, and number formatting helpers |
 | `btc.js` | Balance math, address types, supply calculations, unconfirmed helpers |
+| `liquid-utils.js` | Liquid address detection, types, and amount labels |
 | `prices.js` | Fiat price fetching and caching |
 | `ui.js` | Error display, timers, and responsive text fitting |
 | `balance-sub.js` | Fiat / unconfirmed subtitle cycling with fade transition |
 | `tx-sounds.js` | Transaction sound detection for address and tx lookups |
 | `address-lookup.js` | Address/pubkey data loading, rendering, and auto-refresh |
 | `tx-lookup.js` | Transaction data loading, rendering, and auto-refresh |
-| `lookup.js` | Input routing — address/pubkey vs transaction ID |
-| `qr.js` | QR code overlay generation |
-| `action-menu.js` | ⋯ menu with QR and export options |
+| `lightning-utils.js` | Lightning address / channel ID detection, ID conversion, LNURL helpers |
+| `lightning-lookup.js` | Lightning channel and address data loading and rendering |
+| `lightning-invoice.js` | LNURL-pay invoice form and BOLT11 request |
+| `lookup.js` | Input routing — txid, Lightning address/channel, address/pubkey |
+| `qr.js` | QR code overlay generation and invoice copy button |
+| `action-menu.js` | ⋯ menus for on-chain (QR, export) and Lightning address (QR, invoice) |
 | `tx-export.js` | Confirmed transaction export to Excel (ExcelJS), with retry/resume for large histories |
 | `chain-stats.js` | Block height, mining stats, market metrics, logo tooltip |
 | `pubkey-utils.js` | Public key detection, P2PK script construction, scripthash calculation |
@@ -442,9 +556,10 @@ See [Transaction lookup](#transaction-lookup) above for the full field list.
 |---|---|---|
 | [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr CDN | QR code generation |
 | [ExcelJS](https://www.npmjs.com/package/exceljs) | jsDelivr CDN | Excel export (.xlsx) |
-| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` (+ mirrors) | Primary on-chain data, block height, mining stats, and USD prices |
+| [mempool.space API](https://mempool.space/docs/api/rest) | `mempool.space` (+ mirrors) | Primary on-chain data, Lightning channel data, block height, mining stats, and USD prices |
 | [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live global mempool and watched-address transaction events |
-| [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | `blockstream.info` | Fallback for address, tx, scripthash, and block-height endpoints |
+| [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | `blockstream.info` | Fallback for address, tx, scripthash, and block-height endpoints; Liquid endpoints via `blockstream.info/liquid` |
+| LNURL-pay (per domain) | `https://{domain}/.well-known/lnurlp/{user}` | Lightning address discovery and invoice generation |
 | [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | `blockchain.info` | Fallback for network hashrate and difficulty |
 | [CoinGecko API](https://www.coingecko.com/en/api) | `api.coingecko.com` | BRL spot price, USD price fallback, Mayer Multiple fallback (200-day SMA) |
 | [CoinMetrics Community API](https://community-api.coinmetrics.io/) | `community-api.coinmetrics.io` | MVRV Ratio fallback (`CapMVRVCur`) |
@@ -473,6 +588,9 @@ Every mempool.space REST call goes through `api-client.js`, which enforces a **5
 | Endpoint | Primary | Fallback |
 |---|---|---|
 | Address / tx / scripthash / block height | Mempool provider chain | Blockstream Esplora |
+| Liquid address / tx / tip height | `blockstream.info/liquid`, `liquid.network` | — |
+| `/v1/lightning/channels/{id}` | Mempool provider chain (mempool-only) | — |
+| LNURL-pay discovery / invoice | Recipient domain (browser fetch) | — (CORS-dependent) |
 | `/v1/prices` (USD) | Mempool provider chain | CoinGecko |
 | `/v1/mining/hashrate/3d` | Mempool provider chain | blockchain.info |
 | `/v1/transaction-times` | Mempool provider chain | Block audit endpoint (confirmed txs) |
