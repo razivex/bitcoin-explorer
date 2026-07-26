@@ -83,6 +83,29 @@ function buildLnurlCallbackUrl(callback, amountMsat, comment) {
   return url.toString();
 }
 
+/**
+ * Parse a required whole-satoshi amount from the invoice form.
+ * LNURL-pay always needs a concrete amount to mint a one-time bolt11 invoice.
+ * @returns {number} Whole sats
+ */
+function parseInvoiceAmountInput(rawValue) {
+  const text = String(rawValue ?? "").trim();
+  if (text === "") {
+    throw new Error("invalid-amount");
+  }
+
+  // Reject non-integers (e.g. "12.5", "1e3") and non-numeric strings.
+  if (!/^\d+$/.test(text)) {
+    throw new Error("invalid-amount");
+  }
+
+  const amount = Number(text);
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error("invalid-amount");
+  }
+  return amount;
+}
+
 async function requestBolt11Invoice(addressData, amountSats, comment = "") {
   const minSats = Math.max(0, Number(addressData.minSats) || 0);
   const maxSats =
@@ -144,7 +167,14 @@ async function generateLightningInvoice() {
 
   clearInvoiceError();
 
-  const amountSats = Number(AppDom.invoiceAmountInput?.value);
+  let amountSats;
+  try {
+    amountSats = parseInvoiceAmountInput(AppDom.invoiceAmountInput?.value);
+  } catch (err) {
+    showInvoiceError(mapInvoiceError(err));
+    return;
+  }
+
   const comment = AppDom.invoiceCommentInput?.value || "";
 
   const generateBtn = AppDom.invoiceGenerateBtn;

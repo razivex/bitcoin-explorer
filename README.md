@@ -123,18 +123,24 @@ GET https://{domain}/.well-known/lnurlp/{user}
 
 You see the full address (font shrinks so it stays on one line), description from metadata when present, domain, min/max sendable in sats, and whether comments are allowed.
 
-The ⋯ menu on that result has:
+The ⋯ menu on that result has two separate payment options (they do not mix):
 
-| Option | What it does |
-|---|---|
-| Show address QR code | QR of the Lightning address |
-| Generate invoice | LNURL-pay form that returns a BOLT11 invoice |
+| Option | Amount | Reuse | What you get |
+|---|---|---|---|
+| **Show address QR code** | Open (payer chooses within min/max) | Unlimited | QR of `user@domain` (Lightning Address / LNURL-pay endpoint) |
+| **Generate invoice** | Fixed (you enter sats) | Once | QR of a BOLT11 invoice (`pr`) from the LNURL callback |
+
+#### Show address QR code
+
+Shows a QR of the Lightning Address string. Any compatible wallet can pay any amount allowed by the host. The address stays valid for many payments; each payment still uses a fresh bolt11 under the hood on the provider side. Use this for donations and open-amount receives.
 
 #### Generate invoice
 
-Enter an amount in sats (empty by default; must sit inside the provider min/max when those exist). Add a comment if the host allows it. Hit **Generate**.
+Opens a form. **Amount in sats is required** and must sit inside the provider min/max. Add a comment if the host allows it. Hit **Generate**.
 
-The app calls the LNURL callback with `amount` in millisats and shows a QR of the BOLT11 (`pr`). Under the QR there is a **Copy invoice** button. The full invoice string is not printed on screen; you copy it instead.
+The app calls the LNURL callback with `amount` in millisats and shows a QR of the returned BOLT11 (`pr`) only — never the address. That invoice is a one-time payment request for the chosen amount. Under the QR there is a **Copy invoice** button. The full invoice string is not printed on screen; you copy it instead.
+
+Empty amount is rejected with an error; the invoice flow does not fall back to an address QR. For open amount, use **Show address QR code** instead.
 
 A few practical notes. Invoice requests go straight from the browser to the recipient’s provider, so CORS can block some hosts. If the provider returns `status: "ERROR"` (for example a wallet that is not fully set up), that reason is shown as-is. Discovery can succeed and invoice creation still fail when `maxSendable` is `0` or the wallet is incomplete.
 
@@ -269,17 +275,17 @@ A generation counter drops stale responses if you start a new lookup before the 
 
 On an on-chain address or pubkey result, the ⋯ menu offers a QR of the lookup value and Excel export of confirmed txs.
 
-On a Lightning address result, the ⋯ menu offers a QR of `user@domain` and **Generate invoice** (BOLT11 QR plus copy button).
+On a Lightning address result, the ⋯ menu offers **Show address QR code** (open amount, reusable `user@domain`) and **Generate invoice** (fixed amount, one-time BOLT11 QR plus copy button). Those stay separate paths.
 
 ### QR code
 
 QR codes use the `qrcode` library from jsDelivr (black on white, small quiet zone).
 
-| Source | Payload | Under the QR |
-|---|---|---|
-| On-chain address / pubkey | Address or pubkey hex | nothing |
-| Lightning address | `user@domain` | nothing |
-| Generated invoice | BOLT11 (`lnbc…`) | Copy invoice button |
+| Source | Payload | Amount / reuse | Under the QR |
+|---|---|---|---|
+| On-chain address / pubkey | Address or pubkey hex | n/a | nothing |
+| Lightning address menu | `user@domain` | Open / unlimited | nothing |
+| Generate invoice | BOLT11 (`lnbc…`) | Fixed / once | Copy invoice button |
 
 ### Excel export
 
