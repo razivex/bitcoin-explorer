@@ -12,7 +12,7 @@ Pending funds show up as a net unconfirmed amount with arrows for incoming and o
 
 Transactions show output value, fee, confirmations, first-seen time in the mempool, time to confirm, and whether there is embedded data (OP_RETURN, inscriptions, runes, and similar).
 
-Lightning is supported too. You can open a channel by short ID or full ID, look up a Lightning address (`user@domain`), and generate a BOLT11 invoice with a QR and a copy button.
+Lightning is supported too. You can open a channel by short ID or full ID, look up a Lightning address (`user@domain`), decode a BOLT11 invoice (`lnbc…`), and generate a BOLT11 invoice from a Lightning address with a QR and a copy button.
 
 Confirmed history can be exported to Excel (`.xlsx`). Addresses and pubkeys can also be shared as a QR code.
 
@@ -26,22 +26,27 @@ python -m http.server 8080
 
 Then go to `http://localhost:8080`.
 
-Paste something into the search box and hit **Check**. The same field accepts Bitcoin/Liquid addresses, public keys, txids, Lightning channel IDs, and Lightning addresses.
+Paste something into the search box and hit **Check**. The same field accepts Bitcoin/Liquid addresses, public keys, txids, Lightning channel IDs, Lightning addresses, and BOLT11 invoices.
 
 How input is classified:
 
 1. 64-character hex is treated as a transaction ID
-2. `user@domain` is treated as a Lightning address
-3. Short or full channel IDs are treated as Lightning channels
-4. Everything else goes through the address / public key path
+2. BOLT11 (`lnbc…`, `lntb…`, optional `lightning:` prefix) is treated as a Lightning invoice
+3. `user@domain` is treated as a Lightning address
+4. Short or full channel IDs are treated as Lightning channels
+5. Everything else goes through the address / public key path
 
 ### Navigation bar
 
-The top bar has a Bitcoin logo on the left (hover for live chain and market stats) and sound + language controls on the right. English and Brazilian Portuguese are available. Language and mute preferences stick in `localStorage`.
+The top bar keeps sound + language controls on the right. On the left:
 
-### Logo tooltip
+| Control | Behavior |
+|---|---|
+| **Bitcoin logo** | Click to return to the main start state (clears the search, hides results, same idea as opening `index.html` fresh). No stats on the logo. |
+| **Network** | Hover for live chain stats: height, blocks to difficulty adjustment, blocks to halving, total supply, hashrate, difficulty. |
+| **Valuation** | Hover for market stats: Mayer Multiple, MVRV, Fear & Greed, and BTC price. |
 
-Hover the logo for live stats: height, blocks to difficulty adjustment, blocks to halving, total supply, hashrate, difficulty, Mayer Multiple, MVRV, Fear & Greed, and BTC price.
+English and Brazilian Portuguese are available. Language and mute preferences stick in `localStorage`.
 
 Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Supply is computed locally from the halving schedule at the current height.
 
@@ -79,6 +84,7 @@ Blocks are small squares (about 8 to 18 px) with a ₿ in the middle. At most 36
 | Lightning address | `user@domain` | `hello@getalby.com` |
 | Lightning channel (short ID) | `blockxindexxoutput` or colons | `811984x2037x0` |
 | Lightning channel (full ID) | 10 to 20 digit decimal | `892785849701564416` |
+| Lightning invoice (BOLT11) | `lnbc…` / `lntb…` (optional `lightning:` prefix) | `lnbc20u1p…` |
 
 ### Transaction lookup
 
@@ -114,6 +120,26 @@ fullId = (blockHeight << 40) | (txIndex << 16) | outputIndex
 ```
 
 `BigInt` is used so large IDs stay exact.
+
+### Lightning invoice lookup
+
+Paste a BOLT11 payment request (`lnbc…`, `lntb…`, or `lightning:lnbc…`). Decoding runs in the browser via `bolt11-decode.js` — no API call for the invoice body itself.
+
+You get:
+
+| Field | Description |
+|---|---|
+| Amount | Fixed BTC + sats when present, or “Any amount” for open invoices |
+| Status | Under the amount: **Valid** (green) or **Expired** (red), from creation time + expiry (default 3600 s if the invoice omits `x`) |
+| Invoice | Full payment request (shortened to one line; hover for the rest) |
+| Network | Lightning |
+| Description | Memo text when present, otherwise “No description” |
+| Creation time | Invoice timestamp |
+| Expire date | Creation + expiry |
+| Destination node | Payee pubkey from tag `n`, or recovered from the signature when possible (uses `@noble/secp256k1` + `@noble/hashes` from CDN; best-effort online) |
+| Payment hash | 32-byte payment hash |
+
+Invalid or corrupt invoices show a decode error. Destination may show N/A if recovery fails (for example offline, no CDN, or no recoverable pubkey).
 
 ### Lightning address lookup
 
@@ -168,16 +194,16 @@ Everything is plain HTML, CSS, and JavaScript in the browser. No server code, no
 ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────┐      ┌──────────────┐
 │ address- │ │tx-lookup │ │lightning-    │ │api-client│◄─────│ mempool WS   │
 │ lookup   │ │   .js    │ │lookup.js     │ │   .js    │      │ + REST APIs  │
-└──────────┘ └──────────┘ └──────────────┘ └──────────┘      └──────────────┘
-    │               │               │              ▲
-    └───────────────┴───────┬───────┘              │
-                            ▼                      │
-    ┌──────────────────────────────────────────────┴──────────────────┐
+└──────────┘ └──────────┘ │(+ bolt11)    │ └──────────┘      └──────────────┘
+    │               │     └──────────────┘        ▲
+    └───────────────┴───────┬─────────────────────┘
+                            ▼
+    ┌─────────────────────────────────────────────────────────────────┐
     │ dom.js · state.js · format.js · btc.js · prices.js · ui.js      │
     │ balance-sub.js · tx-sounds.js · qr.js · action-menu.js         │
-    │ lightning-utils.js · lightning-invoice.js · liquid-utils.js    │
-    │ tx-export.js · pubkey-utils.js · tx-utils.js · i18n.js         │
-    │ sounds.js                                                       │
+    │ lightning-utils.js · bolt11-decode.js · lightning-invoice.js   │
+    │ liquid-utils.js · tx-export.js · pubkey-utils.js · tx-utils.js │
+    │ i18n.js · sounds.js                                             │
     └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -188,6 +214,10 @@ When you click **Check**, `lookup.js` picks a path.
 **Transaction ID**
 
 `tx-utils.js` matches 64-char hex. The app fetches `GET /api/tx/{txid}`, first-seen time, fee rate, vsize, embedded data, and confirmation count, then renders the tx panel with live timers.
+
+**Lightning invoice (BOLT11)**
+
+`bolt11-decode.js` matches `lnbc…` / related HRPs (and strips a `lightning:` prefix). The invoice is decoded locally: amount, description, payment hash, timestamps, expiry/status, and destination node when available. See [Lightning invoice lookup](#lightning-invoice-lookup).
 
 **Lightning address**
 
@@ -395,7 +425,7 @@ See [Transaction lookup](#transaction-lookup).
 
 ### Lightning
 
-See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address lookup](#lightning-address-lookup).
+See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lookup](#lightning-address-lookup), and [Lightning invoice lookup](#lightning-invoice-lookup).
 
 ## Files
 
@@ -417,13 +447,14 @@ See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address
 | `address-lookup.js` | Address/pubkey load, render, auto-refresh |
 | `tx-lookup.js` | Tx load, render, auto-refresh |
 | `lightning-utils.js` | LN address/channel detection, ID conversion, LNURL helpers |
-| `lightning-lookup.js` | LN channel and address load/render |
-| `lightning-invoice.js` | Invoice form and BOLT11 request |
-| `lookup.js` | Input routing, in-app search navigation, channel back target |
+| `bolt11-decode.js` | BOLT11 bech32 decode, amount/tags/expiry, optional payee recovery |
+| `lightning-lookup.js` | LN channel, address, and invoice load/render |
+| `lightning-invoice.js` | Invoice form and BOLT11 request (from LN address) |
+| `lookup.js` | Input routing, home reset, in-app search navigation, channel back target |
 | `qr.js` | QR overlay and invoice copy button |
 | `action-menu.js` | ⋯ menus |
 | `tx-export.js` | Excel export with retry/resume |
-| `chain-stats.js` | Height, mining, market metrics, logo tooltip |
+| `chain-stats.js` | Height, mining, market metrics, Network/Valuation tooltips |
 | `pubkey-utils.js` | Pubkey detection, P2PK script, scripthash |
 | `tx-utils.js` | Txid validation and embedded data detection |
 | `i18n.js` | EN / pt-BR strings and language picker |
@@ -437,6 +468,8 @@ See [Lightning channel lookup](#lightning-channel-lookup) and [Lightning address
 |---|---|---|
 | [qrcode](https://www.npmjs.com/package/qrcode) | jsDelivr | QR codes |
 | [ExcelJS](https://www.npmjs.com/package/exceljs) | jsDelivr | Excel export |
+| [@noble/secp256k1](https://www.npmjs.com/package/@noble/secp256k1) | jsDelivr (dynamic import) | Optional payee pubkey recovery from BOLT11 signature |
+| [@noble/hashes](https://www.npmjs.com/package/@noble/hashes) | jsDelivr (dynamic import) | SHA-256 for invoice signature recovery |
 | [mempool.space API](https://mempool.space/docs/api/rest) | mempool.space (+ mirrors) | On-chain data, Lightning channels, height, mining, USD |
 | [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live mempool and watched address events |
 | [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | blockstream.info | Fallback chain endpoints; Liquid via `/liquid` |

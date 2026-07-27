@@ -160,16 +160,6 @@ function isValidLnurlPayResponse(data) {
   );
 }
 
-function isValidBolt11Invoice(invoice) {
-  const value = String(invoice ?? "").trim().toLowerCase();
-  return (
-    value.startsWith("lnbc") ||
-    value.startsWith("lntb") ||
-    value.startsWith("lnbcrt") ||
-    value.startsWith("lnsb")
-  );
-}
-
 window.isLightningAddress = isLightningAddress;
 window.isLightningChannelShortId = isLightningChannelShortId;
 window.isLightningChannelFullId = isLightningChannelFullId;
@@ -183,4 +173,3 @@ window.parseLnurlMetadata = parseLnurlMetadata;
 window.msatToSats = msatToSats;
 window.satsToMsat = satsToMsat;
 window.isValidLnurlPayResponse = isValidLnurlPayResponse;
-window.isValidBolt11Invoice = isValidBolt11Invoice;

@@ -137,70 +137,86 @@ function appendTooltipMetricLine(parent, labelKey, valueText, tone) {
   parent.appendChild(line);
 }
 
-function updateBlockHeightTooltip() {
-  if (!AppDom.blockHeightTooltipEl || AppState.cachedBlockHeight === null) {
+function updateNetworkTooltip() {
+  if (!AppDom.networkTooltipEl || AppState.cachedBlockHeight === null) {
     return;
   }
 
   const blockHeight = Number(AppState.cachedBlockHeight);
   if (!Number.isFinite(blockHeight)) return;
 
-  AppDom.blockHeightTooltipEl.replaceChildren();
+  AppDom.networkTooltipEl.replaceChildren();
 
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.networkTooltipEl,
     t("blockHeight", { height: formatBlockHeight(blockHeight) }),
   );
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.networkTooltipEl,
     t("blocksToDifficulty", {
       blocks: formatBlockHeight(blocksUntilDifficultyAdjustment(blockHeight)),
     }),
   );
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.networkTooltipEl,
     t("blocksToHalving", {
       blocks: formatBlockHeight(blocksUntilHalving(blockHeight)),
     }),
   );
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.networkTooltipEl,
     t("totalSupply", { amount: formatTotalBtcSupply(blockHeight) }),
   );
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.networkTooltipEl,
     t("hashrate", { value: formatHashrate(AppState.cachedMiningStats.hashrate) }),
   );
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.networkTooltipEl,
     t("networkDifficulty", {
       value: formatNetworkDifficulty(AppState.cachedMiningStats.difficulty),
     }),
   );
+
+  AppDom.networkTooltipEl.hidden = false;
+}
+
+function updateValuationTooltip() {
+  if (!AppDom.valuationTooltipEl) {
+    return;
+  }
+
+  AppDom.valuationTooltipEl.replaceChildren();
+
   appendTooltipMetricLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.valuationTooltipEl,
     "mayerMultiple",
     formatMetric(AppState.cachedMarketMetrics.mayerMultiple),
     getMayerMultipleTone(AppState.cachedMarketMetrics.mayerMultiple),
   );
   appendTooltipMetricLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.valuationTooltipEl,
     "mvrvRatio",
     formatMetric(AppState.cachedMarketMetrics.mvrv),
     getMvrvTone(AppState.cachedMarketMetrics.mvrv),
   );
   appendTooltipMetricLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.valuationTooltipEl,
     "fearGreedIndex",
     formatFearGreedValue(),
     getFearGreedTone(),
   );
   appendTooltipLine(
-    AppDom.blockHeightTooltipEl,
+    AppDom.valuationTooltipEl,
     t("bitcoinPrice", { value: formatTooltipBitcoinPrice() }),
   );
 
-  AppDom.blockHeightTooltipEl.hidden = false;
+  AppDom.valuationTooltipEl.hidden = false;
+}
+
+function updateBlockHeightTooltip() {
+  updateNetworkTooltip();
+  updateValuationTooltip();
 }
 
 async function fetchMayerMultiple() {

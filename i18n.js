@@ -7,7 +7,7 @@ const translations = {
     pageHeading: "Bitcoin Explorer",
     pageSub:
       "Real time data explorer for on-chain Bitcoin, Lightning, or Liquid",
-    searchLabel: "Check your address, transaction or invoice below:",
+    searchLabel: "Check your address, transaction, channel or invoice below:",
     searchPlaceholder: "e.g. bc1q...",
     txId: "Transaction ID:",
     txDate: "First Seen Date:",
@@ -93,6 +93,17 @@ const translations = {
     lnClosingTx: "Closing TX:",
     lnChannelStatusOpen: "Open",
     lnChannelStatusClosed: "Closed",
+    lnInvoiceLabel: "Invoice:",
+    lnInvoiceAmountLabel: "Amount:",
+    lnInvoiceDescription: "Description:",
+    lnInvoiceDestination: "Destination node:",
+    lnInvoicePaymentHash: "Payment hash:",
+    lnInvoiceCreated: "Creation time:",
+    lnInvoiceExpires: "Expire date:",
+    lnInvoiceAnyAmount: "Any amount",
+    lnInvoiceStatusValid: "Valid",
+    lnInvoiceStatusExpired: "Expired",
+    lnInvoiceNoDescription: "No description",
     unitSats: "sats",
     networkLightning: "Lightning",
     address: "Address:",
@@ -106,6 +117,10 @@ const translations = {
     lastTxDate: "Last Transaction Date:",
     timeSinceLast: "Time Since Last Transaction:",
     footerCreatedBy: "Created by",
+    navHome: "Home",
+    navStats: "Stats",
+    navNetwork: "Network",
+    navValuation: "Valuation",
     blockHeight: "Height: {height}",
     bitcoinPrice: "Price: {value}",
     blocksToDifficulty: "Difficult Adjustment: {blocks}",
@@ -128,7 +143,7 @@ const translations = {
     soundsOn: "Sounds on",
     soundsOff: "Sounds off",
     errorEmpty:
-      "Please enter a Bitcoin or Liquid address, public key, transaction ID, Lightning channel, or Lightning address.",
+      "Please enter a Bitcoin or Liquid address, public key, transaction ID, Lightning channel, Lightning address, or Lightning invoice.",
     errorInvalidPubkey:
       "Invalid public key. Paste a compressed (02/03...) or uncompressed (04...) key in hex.",
     errorFetch:
@@ -137,6 +152,8 @@ const translations = {
       "Could not fetch Lightning channel. Check the channel ID and try again.",
     errorLnAddressFetch:
       "Could not fetch Lightning address. Check the address and try again. Some providers may block browser requests (CORS).",
+    errorLnInvoiceDecode:
+      "Could not decode Lightning invoice. Check the invoice and try again.",
     errorLnInvoiceNoAddress: "Look up a Lightning address before generating an invoice.",
     errorLnInvoiceAmount: "Enter a valid whole-satoshi amount.",
     errorLnInvoiceAmountLow: "Amount is below the minimum for this address.",
@@ -182,7 +199,7 @@ const translations = {
     pageHeading: "Explorador Bitcoin",
     pageSub:
       "Explorador de dados em tempo real para Bitcoin on-chain, Lightning ou Liquid",
-    searchLabel: "Verifique seu endereço, transação ou fatura abaixo:",
+    searchLabel: "Verifique seu endereço, transação, canal ou fatura abaixo:",
     searchPlaceholder: "ex.: bc1q...",
     txId: "ID da Transação:",
     txDate: "Data da primeira detecção:",
@@ -269,6 +286,17 @@ const translations = {
     lnClosingTx: "TX de Fechamento:",
     lnChannelStatusOpen: "Aberto",
     lnChannelStatusClosed: "Fechado",
+    lnInvoiceLabel: "Fatura:",
+    lnInvoiceAmountLabel: "Valor:",
+    lnInvoiceDescription: "Descrição:",
+    lnInvoiceDestination: "Nó de destino:",
+    lnInvoicePaymentHash: "Payment hash:",
+    lnInvoiceCreated: "Criação:",
+    lnInvoiceExpires: "Expiração:",
+    lnInvoiceAnyAmount: "Qualquer valor",
+    lnInvoiceStatusValid: "Válida",
+    lnInvoiceStatusExpired: "Expirada",
+    lnInvoiceNoDescription: "Sem descrição",
     unitSats: "sats",
     networkLightning: "Lightning",
     address: "Endereço:",
@@ -282,6 +310,10 @@ const translations = {
     lastTxDate: "Data da Última Transação:",
     timeSinceLast: "Tempo Desde a Última Transação:",
     footerCreatedBy: "Criado por",
+    navHome: "Início",
+    navStats: "Estatísticas",
+    navNetwork: "Rede",
+    navValuation: "Avaliação",
     blockHeight: "Altura: {height}",
     bitcoinPrice: "Preço: {value}",
     blocksToDifficulty: "Ajuste de Dificuldade: {blocks}",
@@ -304,7 +336,7 @@ const translations = {
     soundsOn: "Sons ligados",
     soundsOff: "Sons desligados",
     errorEmpty:
-      "Por favor, insira um endereço Bitcoin ou Liquid, chave pública, ID de transação, canal Lightning ou endereço Lightning.",
+      "Por favor, insira um endereço Bitcoin ou Liquid, chave pública, ID de transação, canal Lightning, endereço Lightning ou fatura Lightning.",
     errorInvalidPubkey:
       "Chave pública inválida. Cole uma chave comprimida (02/03...) ou não comprimida (04...) em hexadecimal.",
     errorFetch:
@@ -313,6 +345,8 @@ const translations = {
       "Não foi possível buscar o canal Lightning. Verifique o ID do canal e tente novamente.",
     errorLnAddressFetch:
       "Não foi possível buscar o endereço Lightning. Verifique o endereço e tente novamente. Alguns provedores podem bloquear pedidos do navegador (CORS).",
+    errorLnInvoiceDecode:
+      "Não foi possível decodificar a fatura Lightning. Verifique a fatura e tente novamente.",
     errorLnInvoiceNoAddress:
       "Busque um endereço Lightning antes de gerar uma fatura.",
     errorLnInvoiceAmount: "Insira um valor inteiro válido em satoshis.",

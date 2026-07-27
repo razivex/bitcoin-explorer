@@ -10,11 +10,31 @@
 <body>
   <div id="fallingBlocks" class="falling-blocks" aria-hidden="true"></div>
   <header class="top-nav">
-    <div class="top-nav__brand">
-      <svg class="top-nav__logo" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M17.06 11.57c.24-1.6-.98-2.46-2.65-3.03l.54-2.17-1.32-.33-.53 2.11c-.35-.09-.7-.17-1.06-.25l.53-2.14-1.32-.33-.54 2.17c-.29-.07-.57-.13-.84-.2l.001-.006-1.82-.45-.35 1.41s.98.22.96.24c.54.13.63.49.62.77l-.62 2.48c.04.01.08.02.13.04l-.13-.03-.87 3.49c-.07.16-.23.41-.61.32.01.02-.96-.24-.96-.24l-.65 1.51 1.72.43c.32.08.63.17.94.25l-.55 2.2 1.32.33.54-2.17c.36.1.71.18 1.05.26l-.54 2.16 1.32.33.55-2.2c2.26.43 3.96.26 4.68-1.79.58-1.65-.03-2.6-1.22-3.22.87-.2 1.52-.77 1.7-1.95zm-3.04 4.25c-.41 1.65-3.18.76-4.08.53l.73-2.92c.9.23 3.79.67 3.35 2.39zm.41-4.28c-.37 1.5-2.68.74-3.43.55l.66-2.65c.75.19 3.16.54 2.77 2.1z"/>
-      </svg>
-      <div id="blockHeightTooltip" class="top-nav__tooltip" role="tooltip" hidden></div>
+    <div class="top-nav__left">
+      <a
+        id="homeLogoLink"
+        class="top-nav__logo-link"
+        href="index.html"
+        data-i18n-title="navHome"
+        data-i18n="navHome"
+        data-i18n-attr="aria-label"
+        title="Home"
+        aria-label="Home"
+      >
+        <svg class="top-nav__logo" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17.06 11.57c.24-1.6-.98-2.46-2.65-3.03l.54-2.17-1.32-.33-.53 2.11c-.35-.09-.7-.17-1.06-.25l.53-2.14-1.32-.33-.54 2.17c-.29-.07-.57-.13-.84-.2l.001-.006-1.82-.45-.35 1.41s.98.22.96.24c.54.13.63.49.62.77l-.62 2.48c.04.01.08.02.13.04l-.13-.03-.87 3.49c-.07.16-.23.41-.61.32.01.02-.96-.24-.96-.24l-.65 1.51 1.72.43c.32.08.63.17.94.25l-.55 2.2 1.32.33.54-2.17c.36.1.71.18 1.05.26l-.54 2.16 1.32.33.55-2.2c2.26.43 3.96.26 4.68-1.79.58-1.65-.03-2.6-1.22-3.22.87-.2 1.52-.77 1.7-1.95zm-3.04 4.25c-.41 1.65-3.18.76-4.08.53l.73-2.92c.9.23 3.79.67 3.35 2.39zm.41-4.28c-.37 1.5-2.68.74-3.43.55l.66-2.65c.75.19 3.16.54 2.77 2.1z"/>
+        </svg>
+      </a>
+      <nav class="top-nav__menu" data-i18n="navStats" data-i18n-attr="aria-label" aria-label="Stats">
+        <div class="top-nav__item">
+          <span class="top-nav__item-label" data-i18n="navNetwork">Network</span>
+          <div id="networkTooltip" class="top-nav__tooltip" role="tooltip" hidden></div>
+        </div>
+        <div class="top-nav__item">
+          <span class="top-nav__item-label" data-i18n="navValuation">Valuation</span>
+          <div id="valuationTooltip" class="top-nav__tooltip" role="tooltip" hidden></div>
+        </div>
+      </nav>
     </div>
     <div class="top-nav__controls">
       <button
@@ -58,7 +78,7 @@
     <h1 data-i18n="pageHeading">Bitcoin Explorer</h1>
     <p class="sub" data-i18n="pageSub">Real time data explorer for on-chain Bitcoin, Lightning, or Liquid</p>
 
-    <label for="address" data-i18n="searchLabel">Check your address, transaction or invoice below:</label>
+    <label for="address" data-i18n="searchLabel">Check your address, transaction, channel or invoice below:</label>
     <div class="row">
       <input
         id="address"
@@ -81,18 +101,38 @@
           <strong data-i18n="txId">Transaction ID:</strong>
           <span id="txMetaId" class="meta__address"></span>
         </div>
-        <strong data-i18n="network">Network:</strong> <span id="txMetaNetwork"></span><br>
-        <span id="txMetaDateRow" class="meta__row">
-          <strong data-i18n="txDate">First Seen Date:</strong> <span id="txMetaDate">N/A</span><br>
-        </span>
-        <strong data-i18n="txFee">Fee:</strong> <span id="txMetaFee">N/A</span><br>
-        <strong data-i18n="txEmbeddedData">Embedded data:</strong> <span id="txEmbeddedData">N/A</span><br>
-        <strong data-i18n="txConfirmations">Confirmations:</strong> <span id="txMetaConfirmations">N/A</span><br>
-        <strong data-i18n="txConfirmedAt">Confirmed Date:</strong> <span id="txMetaConfirmedAt">N/A</span><br>
-        <span id="txMetaTimeToConfirmationRow" class="meta__row">
-          <strong data-i18n="txTimeToConfirmation">Time to confirmation:</strong> <span id="txMetaTimeToConfirmation">N/A</span><br>
-        </span>
-        <strong data-i18n="txTimeSinceConfirmation">Time since confirmation:</strong> <span id="txMetaTimeSinceConfirmation">N/A</span><br>
+        <div class="meta__row">
+          <strong data-i18n="network">Network:</strong>
+          <span id="txMetaNetwork"></span>
+        </div>
+        <div id="txMetaDateRow" class="meta__row">
+          <strong data-i18n="txDate">First Seen Date:</strong>
+          <span id="txMetaDate">N/A</span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="txFee">Fee:</strong>
+          <span id="txMetaFee">N/A</span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="txEmbeddedData">Embedded data:</strong>
+          <span id="txEmbeddedData">N/A</span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="txConfirmations">Confirmations:</strong>
+          <span id="txMetaConfirmations">N/A</span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="txConfirmedAt">Confirmed Date:</strong>
+          <span id="txMetaConfirmedAt">N/A</span>
+        </div>
+        <div id="txMetaTimeToConfirmationRow" class="meta__row">
+          <strong data-i18n="txTimeToConfirmation">Time to confirmation:</strong>
+          <span id="txMetaTimeToConfirmation">N/A</span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="txTimeSinceConfirmation">Time since confirmation:</strong>
+          <span id="txMetaTimeSinceConfirmation">N/A</span>
+        </div>
       </div>
     </section>
 
@@ -157,12 +197,30 @@
           <strong id="metaAddressLabel" data-i18n="address">Address:</strong>
           <span id="metaAddress" class="meta__address"></span>
         </div>
-        <strong data-i18n="network">Network:</strong> <span id="metaNetwork"></span><br>
-        <strong data-i18n="addressType">Address Type:</strong> <span id="metaAddressType"></span><br>
-        <strong data-i18n="exposedPubKey">Exposed PubKey:</strong> <span id="metaExposedPubKey"></span><br>
-        <strong data-i18n="transactions">Transactions:</strong> <span id="metaTransactions"></span><br>
-        <strong data-i18n="lastTxDate">Last Transaction Date:</strong> <span id="metaLastTxDate">N/A</span><br>
-        <strong data-i18n="timeSinceLast">Time Since Last Transaction:</strong> <span id="timeSinceLast">N/A</span>
+        <div class="meta__row">
+          <strong data-i18n="network">Network:</strong>
+          <span id="metaNetwork"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="addressType">Address Type:</strong>
+          <span id="metaAddressType"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="exposedPubKey">Exposed PubKey:</strong>
+          <span id="metaExposedPubKey"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="transactions">Transactions:</strong>
+          <span id="metaTransactions"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lastTxDate">Last Transaction Date:</strong>
+          <span id="metaLastTxDate">N/A</span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="timeSinceLast">Time Since Last Transaction:</strong>
+          <span id="timeSinceLast">N/A</span>
+        </div>
       </div>
     </section>
 
@@ -227,11 +285,26 @@
           <strong data-i18n="lnAddress">Lightning Address:</strong>
           <span id="lnAddressValue" class="meta__address"></span>
         </div>
-        <strong data-i18n="network">Network:</strong> <span id="lnAddressNetwork"></span><br>
-        <strong data-i18n="lnDomain">Domain:</strong> <span id="lnAddressDomain"></span><br>
-        <strong data-i18n="lnMinAmount">Min amount:</strong> <span id="lnAddressMin"></span><br>
-        <strong data-i18n="lnMaxAmount">Max amount:</strong> <span id="lnAddressMax"></span><br>
-        <strong data-i18n="lnComment">Comments:</strong> <span id="lnAddressComment"></span>
+        <div class="meta__row">
+          <strong data-i18n="network">Network:</strong>
+          <span id="lnAddressNetwork"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnDomain">Domain:</strong>
+          <span id="lnAddressDomain"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnMinAmount">Min amount:</strong>
+          <span id="lnAddressMin"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnMaxAmount">Max amount:</strong>
+          <span id="lnAddressMax"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnComment">Comments:</strong>
+          <span id="lnAddressComment"></span>
+        </div>
       </div>
     </section>
 
@@ -247,12 +320,30 @@
           <strong data-i18n="lnChannelFullId">Full ID:</strong>
           <span id="lnChannelFullId" class="meta__address"></span>
         </div>
-        <strong data-i18n="network">Network:</strong> <span id="lnChannelNetwork"></span><br>
-        <strong data-i18n="lnCapacity">Capacity:</strong> <span id="lnChannelCapacityMeta"></span><br>
-        <strong data-i18n="lnCreated">Created:</strong> <span id="lnChannelCreated"></span><br>
-        <strong data-i18n="lnUpdated">Updated:</strong> <span id="lnChannelUpdated"></span><br>
-        <strong data-i18n="lnNodeLeft">Node A:</strong> <span id="lnChannelNodeLeft"></span><br>
-        <strong data-i18n="lnNodeRight">Node B:</strong> <span id="lnChannelNodeRight"></span><br>
+        <div class="meta__row">
+          <strong data-i18n="network">Network:</strong>
+          <span id="lnChannelNetwork"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnCapacity">Capacity:</strong>
+          <span id="lnChannelCapacityMeta"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnCreated">Created:</strong>
+          <span id="lnChannelCreated"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnUpdated">Updated:</strong>
+          <span id="lnChannelUpdated"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnNodeLeft">Node A:</strong>
+          <span id="lnChannelNodeLeft"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnNodeRight">Node B:</strong>
+          <span id="lnChannelNodeRight"></span>
+        </div>
         <div class="meta__address-row">
           <strong data-i18n="lnFundingTx">Funding TX:</strong>
           <span id="lnChannelFundingTx" class="meta__address"></span>
@@ -260,6 +351,45 @@
         <div class="meta__address-row">
           <strong data-i18n="lnClosingTx">Closing TX:</strong>
           <span id="lnChannelClosingTx" class="meta__address"></span>
+        </div>
+      </div>
+    </section>
+
+    <section id="lnInvoiceResult" class="result ln-result" aria-live="polite">
+      <div class="balance-btc" id="lnInvoiceAmount">0.00000000 BTC</div>
+      <div class="balance-unconfirmed" id="lnInvoiceStatus"></div>
+      <div class="meta" id="lnInvoiceMeta">
+        <div class="meta__address-row">
+          <strong data-i18n="lnInvoiceLabel">Invoice:</strong>
+          <span id="lnInvoiceValue" class="meta__address"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="network">Network:</strong>
+          <span id="lnInvoiceNetwork"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnInvoiceAmountLabel">Amount:</strong>
+          <span id="lnInvoiceAmountMeta"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnInvoiceDescription">Description:</strong>
+          <span id="lnInvoiceDescription"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnInvoiceCreated">Creation time:</strong>
+          <span id="lnInvoiceCreated"></span>
+        </div>
+        <div class="meta__row">
+          <strong data-i18n="lnInvoiceExpires">Expire date:</strong>
+          <span id="lnInvoiceExpires"></span>
+        </div>
+        <div class="meta__address-row">
+          <strong data-i18n="lnInvoiceDestination">Destination node:</strong>
+          <span id="lnInvoiceDestination" class="meta__address"></span>
+        </div>
+        <div class="meta__address-row">
+          <strong data-i18n="lnInvoicePaymentHash">Payment hash:</strong>
+          <span id="lnInvoicePaymentHash" class="meta__address"></span>
         </div>
       </div>
     </section>
@@ -283,14 +413,14 @@
   </main>
 
   <nav class="social-links" data-i18n="socialLinks" data-i18n-attr="aria-label" aria-label="Social links">
-    <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer" aria-label="GitHub — razivex">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.468-2.38 1.236-3.22-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.625-5.48 5.92.43.37.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .32.218.694.825.576C20.565 21.796 24 17.297 24 12c0-6.63-5.37-12-12-12z"/>
-      </svg>
-    </a>
     <a href="https://x.com/AndreRvza" target="_blank" rel="noopener noreferrer" aria-label="X — AndreRvza">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+    </a>
+    <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer" aria-label="GitHub — razivex">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.468-2.38 1.236-3.22-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.807 5.625-5.48 5.92.43.37.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .32.218.694.825.576C20.565 21.796 24 17.297 24 12c0-6.63-5.37-12-12-12z"/>
       </svg>
     </a>
   </nav>
@@ -370,6 +500,7 @@
   <script src="tx-utils.js"></script>
   <script src="liquid-utils.js"></script>
   <script src="lightning-utils.js"></script>
+  <script src="bolt11-decode.js"></script>
   <script src="i18n.js"></script>
   <script src="dom.js"></script>
   <script src="state.js"></script>

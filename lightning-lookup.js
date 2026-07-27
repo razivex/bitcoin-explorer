@@ -131,6 +131,31 @@ async function loadLightningAddressData(input) {
 function hideLightningResults() {
   AppDom.lnAddressResultEl?.classList.remove("show");
   AppDom.lnChannelResultEl?.classList.remove("show");
+  AppDom.lnInvoiceResultEl?.classList.remove("show");
+}
+
+async function loadLightningInvoiceData(input) {
+  const data = await decodeBolt11Invoice(input);
+  // Refresh expiry state at load time.
+  data.expired = Date.now() > data.expiresAt.getTime();
+  return data;
+}
+
+function formatInvoiceAmountLabel(data) {
+  if (data.amountSats === null || data.amountSats === undefined) {
+    return t("lnInvoiceAnyAmount");
+  }
+  const btc =
+    data.amountSats !== null ? satsToBtc(data.amountSats) : null;
+  if (btc === null) return t("na");
+  return `${formatBtc(btc)} BTC (${formatSatsLabel(data.amountSats)})`;
+}
+
+function formatInvoiceHeroAmount(data) {
+  if (data.amountSats === null || data.amountSats === undefined) {
+    return t("lnInvoiceAnyAmount");
+  }
+  return `${formatBtc(satsToBtc(data.amountSats))} BTC`;
 }
 
 function applyLightningChannelData(data, { silent = false } = {}) {
@@ -142,6 +167,7 @@ function applyLightningChannelData(data, { silent = false } = {}) {
   AppDom.resultEl.classList.remove("show");
   AppDom.txResultEl.classList.remove("show");
   AppDom.lnAddressResultEl.classList.remove("show");
+  AppDom.lnInvoiceResultEl?.classList.remove("show");
 
   AppDom.lnChannelCapacityEl.textContent =
     data.capacityBtc === null
@@ -244,6 +270,88 @@ function bindLightningChannelTxLinks() {
   });
 }
 
+function applyLightningInvoiceData(data, { silent = false } = {}) {
+  AppState.currentNetwork = "lightning";
+  AppState.lastAppliedLnData = data;
+  AppState.currentLookupInput = data.invoice;
+  AppState.currentLnAddress = null;
+
+  // Recompute expired on each render (language refresh / re-apply).
+  data.expired = Date.now() > data.expiresAt.getTime();
+
+  AppDom.resultEl.classList.remove("show");
+  AppDom.txResultEl.classList.remove("show");
+  AppDom.lnAddressResultEl?.classList.remove("show");
+  AppDom.lnChannelResultEl?.classList.remove("show");
+
+  if (AppDom.lnInvoiceAmountEl) {
+    AppDom.lnInvoiceAmountEl.textContent = formatInvoiceHeroAmount(data);
+    scheduleLnInvoiceAmountFit();
+  }
+
+  if (AppDom.lnInvoiceStatusEl) {
+    AppDom.lnInvoiceStatusEl.textContent = data.expired
+      ? t("lnInvoiceStatusExpired")
+      : t("lnInvoiceStatusValid");
+    AppDom.lnInvoiceStatusEl.classList.toggle(
+      "ln-status--closed",
+      Boolean(data.expired),
+    );
+    AppDom.lnInvoiceStatusEl.classList.toggle(
+      "ln-status--open",
+      !data.expired,
+    );
+  }
+
+  setTruncatableField(AppDom.lnInvoiceValueEl, data.invoice);
+
+  if (AppDom.lnInvoiceNetworkEl) {
+    AppDom.lnInvoiceNetworkEl.textContent = t("networkLightning");
+  }
+  if (AppDom.lnInvoiceAmountMetaEl) {
+    AppDom.lnInvoiceAmountMetaEl.textContent = formatInvoiceAmountLabel(data);
+  }
+  if (AppDom.lnInvoiceDescriptionEl) {
+    if (data.description) {
+      AppDom.lnInvoiceDescriptionEl.textContent = data.description;
+      AppDom.lnInvoiceDescriptionEl.title = data.description;
+    } else if (data.descriptionHash) {
+      AppDom.lnInvoiceDescriptionEl.textContent = t("lnInvoiceNoDescription");
+      AppDom.lnInvoiceDescriptionEl.title = data.descriptionHash;
+    } else {
+      AppDom.lnInvoiceDescriptionEl.textContent = t("lnInvoiceNoDescription");
+      AppDom.lnInvoiceDescriptionEl.title = "";
+    }
+  }
+
+  const destination = data.payeeNodeKey || "";
+  setTruncatableField(
+    AppDom.lnInvoiceDestinationEl,
+    destination || t("na"),
+  );
+  if (AppDom.lnInvoiceDestinationEl) {
+    AppDom.lnInvoiceDestinationEl.title = destination || "";
+  }
+
+  setTruncatableField(
+    AppDom.lnInvoicePaymentHashEl,
+    data.paymentHash || t("na"),
+  );
+
+  if (AppDom.lnInvoiceCreatedEl) {
+    AppDom.lnInvoiceCreatedEl.textContent = formatDateTime(data.createdAt);
+  }
+  if (AppDom.lnInvoiceExpiresEl) {
+    AppDom.lnInvoiceExpiresEl.textContent = formatDateTime(data.expiresAt);
+  }
+
+  if (!silent) {
+    // Local decode only — nothing to poll.
+  }
+
+  AppDom.lnInvoiceResultEl?.classList.add("show");
+}
+
 function applyLightningAddressData(data, { silent = false } = {}) {
   AppState.currentNetwork = "lightning";
   AppState.lastAppliedLnData = data;
@@ -253,6 +361,7 @@ function applyLightningAddressData(data, { silent = false } = {}) {
   AppDom.resultEl.classList.remove("show");
   AppDom.txResultEl.classList.remove("show");
   AppDom.lnChannelResultEl.classList.remove("show");
+  AppDom.lnInvoiceResultEl?.classList.remove("show");
 
   setLnAddressTitleDisplay(data.address);
 
@@ -395,14 +504,42 @@ function scheduleLnChannelCapacityFit() {
   });
 }
 
+function fitLnInvoiceAmountToWidth() {
+  if (
+    !AppDom.lnInvoiceAmountEl ||
+    !AppDom.lnInvoiceResultEl?.classList.contains("show")
+  ) {
+    return;
+  }
+
+  AppDom.lnInvoiceAmountEl.style.fontSize = `${AppConstants.BALANCE_BTC_MAX_FONT_PX}px`;
+  if (AppDom.lnInvoiceAmountEl.clientWidth === 0) return;
+
+  let fontSize = AppConstants.BALANCE_BTC_MAX_FONT_PX;
+  while (
+    fontSize > AppConstants.BALANCE_BTC_MIN_FONT_PX &&
+    AppDom.lnInvoiceAmountEl.scrollWidth > AppDom.lnInvoiceAmountEl.clientWidth
+  ) {
+    fontSize -= 1;
+    AppDom.lnInvoiceAmountEl.style.fontSize = `${fontSize}px`;
+  }
+}
+
+function scheduleLnInvoiceAmountFit() {
+  requestAnimationFrame(() => {
+    fitLnInvoiceAmountToWidth();
+  });
+}
+
 function refitLightningTruncatableFields() {
   document
     .querySelectorAll(
-      "#lnAddressResult .meta__address, #lnChannelResult .meta__address",
+      "#lnAddressResult .meta__address, #lnChannelResult .meta__address, #lnInvoiceResult .meta__address",
     )
     .forEach((el) => fitTruncatableField(el));
   fitLnAddressTitleToWidth();
   fitLnChannelCapacityToWidth();
+  fitLnInvoiceAmountToWidth();
 }
 
 window.getLightningChannelStatusLabel = getLightningChannelStatusLabel;
@@ -411,10 +548,13 @@ window.formatSatsLabel = formatSatsLabel;
 window.formatCapacityLabel = formatCapacityLabel;
 window.loadLightningChannelData = loadLightningChannelData;
 window.loadLightningAddressData = loadLightningAddressData;
+window.loadLightningInvoiceData = loadLightningInvoiceData;
 window.hideLightningResults = hideLightningResults;
 window.applyLightningChannelData = applyLightningChannelData;
 window.applyLightningAddressData = applyLightningAddressData;
+window.applyLightningInvoiceData = applyLightningInvoiceData;
 window.fitLnAddressTitleToWidth = fitLnAddressTitleToWidth;
 window.fitLnChannelCapacityToWidth = fitLnChannelCapacityToWidth;
+window.fitLnInvoiceAmountToWidth = fitLnInvoiceAmountToWidth;
 window.refitLightningTruncatableFields = refitLightningTruncatableFields;
 window.bindLightningChannelTxLinks = bindLightningChannelTxLinks;

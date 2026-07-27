@@ -6,6 +6,11 @@ function initApp() {
 
 function bindAppEvents() {
   AppDom.lookupBtn.addEventListener("click", () => performLookup());
+  AppDom.homeLogoLink?.addEventListener("click", (event) => {
+    if (typeof goToHome === "function") {
+      goToHome(event);
+    }
+  });
   bindActionMenuEvents();
   bindInvoiceOverlayEvents();
   bindQrEvents();
@@ -69,6 +74,13 @@ function bindAppEvents() {
         AppDom.lnAddressResultEl?.classList.contains("show")
       ) {
         applyLightningAddressData(AppState.lastAppliedLnData, { silent: true });
+      }
+
+      if (
+        AppState.lastAppliedLnData?.kind === "invoice" &&
+        AppDom.lnInvoiceResultEl?.classList.contains("show")
+      ) {
+        applyLightningInvoiceData(AppState.lastAppliedLnData, { silent: true });
       }
 
       if (AppDom.invoiceGenerateBtn && !AppDom.invoiceGenerateBtn.disabled) {

@@ -156,6 +156,36 @@ async function lookupLightningAddress() {
   }
 }
 
+async function lookupLightningInvoice() {
+  const generation = ++AppState.lookupGeneration;
+  ++AppState.txLookupGeneration;
+
+  clearError();
+  resetLookupUiState();
+
+  const input = AppDom.addressInput.value.trim();
+
+  AppDom.lookupBtn.disabled = true;
+  AppDom.lookupBtn.textContent = t("loading");
+
+  try {
+    const data = await loadLightningInvoiceData(input);
+    if (generation !== AppState.lookupGeneration) return;
+
+    applyLightningInvoiceData(data, { silent: false });
+  } catch (err) {
+    if (generation === AppState.lookupGeneration) {
+      showError(t("errorLnInvoiceDecode"));
+    }
+    console.error(err);
+  } finally {
+    if (generation === AppState.lookupGeneration) {
+      AppDom.lookupBtn.disabled = false;
+      AppDom.lookupBtn.textContent = t("check");
+    }
+  }
+}
+
 /**
  * @param {{ preserveBackTarget?: boolean }} [options]
  */
@@ -174,6 +204,11 @@ function performLookup(options = {}) {
 
   if (isValidTxid(input)) {
     lookupTransaction();
+    return;
+  }
+
+  if (typeof isBolt11Invoice === "function" ? isBolt11Invoice(input) : isValidBolt11Invoice(input)) {
+    lookupLightningInvoice();
     return;
   }
 
@@ -222,6 +257,37 @@ function clearLookupBackTarget() {
   updateTxBackButton();
 }
 
+/**
+ * Return to the initial main page state (empty search, no results),
+ * equivalent to opening index.html for the first time.
+ */
+function goToHome(event) {
+  if (event) {
+    event.preventDefault();
+  }
+
+  ++AppState.lookupGeneration;
+  ++AppState.txLookupGeneration;
+
+  if (AppDom.addressInput) {
+    AppDom.addressInput.value = "";
+  }
+
+  clearError();
+  resetLookupUiState();
+  clearLookupBackTarget();
+
+  AppDom.resultEl?.classList.remove("show");
+  AppDom.txResultEl?.classList.remove("show");
+
+  if (AppDom.lookupBtn) {
+    AppDom.lookupBtn.disabled = false;
+    AppDom.lookupBtn.textContent = t("check");
+  }
+
+  AppDom.addressInput?.focus();
+}
+
 function getChannelBackTarget() {
   const fromState =
     AppState.currentLookupInput ||
@@ -258,9 +324,11 @@ window.lookupTransaction = lookupTransaction;
 window.lookupAddress = lookupAddress;
 window.lookupLightningChannel = lookupLightningChannel;
 window.lookupLightningAddress = lookupLightningAddress;
+window.lookupLightningInvoice = lookupLightningInvoice;
 window.performLookup = performLookup;
 window.navigateToSearch = navigateToSearch;
 window.clearLookupBackTarget = clearLookupBackTarget;
 window.getChannelBackTarget = getChannelBackTarget;
 window.goBackFromTransaction = goBackFromTransaction;
+window.goToHome = goToHome;
 window.updateTxBackButton = updateTxBackButton;
