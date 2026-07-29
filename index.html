@@ -49,27 +49,86 @@
           <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
         </svg>
       </button>
-      <div class="lang-picker">
+      <div class="settings-picker">
         <button
-          id="langToggleBtn"
-          class="lang-select lang-select--en"
+          id="settingsToggleBtn"
+          class="settings-toggle"
           type="button"
-          aria-label="Language"
-          aria-haspopup="listbox"
+          data-i18n="settings"
+          data-i18n-attr="aria-label"
+          data-i18n-title="settings"
+          aria-label="Settings"
+          title="Settings"
+          aria-haspopup="menu"
           aria-expanded="false"
-        ></button>
-        <ul id="langMenu" class="lang-menu" role="listbox" hidden>
-          <li role="presentation">
-            <button class="lang-menu__option lang-menu__option--en" type="button" data-lang="en" role="option" aria-label="English">
-              <span class="lang-menu__flag" aria-hidden="true"></span>
+        >
+          <svg class="settings-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.05-.7-1.65-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.6.24-1.15.57-1.65.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.05.7 1.65.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.6-.24 1.15-.57 1.65-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+        </button>
+        <div id="settingsMenu" class="settings-menu" role="menu" hidden>
+          <div class="settings-menu__section">
+            <button
+              id="settingsLangBtn"
+              class="settings-menu__item"
+              type="button"
+              role="menuitem"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="langMenu"
+            >
+              <span class="settings-menu__label" data-i18n="language">Language</span>
+              <span id="settingsLangFlag" class="settings-menu__flag settings-menu__flag--en" aria-hidden="true"></span>
             </button>
-          </li>
-          <li role="presentation">
-            <button class="lang-menu__option lang-menu__option--pt-BR" type="button" data-lang="pt-BR" role="option" aria-label="Português">
-              <span class="lang-menu__flag" aria-hidden="true"></span>
+            <ul id="langMenu" class="lang-menu settings-submenu" role="listbox" hidden>
+              <li role="presentation">
+                <button class="lang-menu__option lang-menu__option--en" type="button" data-lang="en" role="option" aria-label="English">
+                  <span class="lang-menu__flag" aria-hidden="true"></span>
+                </button>
+              </li>
+              <li role="presentation">
+                <button class="lang-menu__option lang-menu__option--pt-BR" type="button" data-lang="pt-BR" role="option" aria-label="Português">
+                  <span class="lang-menu__flag" aria-hidden="true"></span>
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div class="settings-menu__section">
+            <button
+              id="settingsCurrencyBtn"
+              class="settings-menu__item"
+              type="button"
+              role="menuitem"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="currencyMenu"
+            >
+              <span class="settings-menu__label" data-i18n="currency">Currency</span>
+              <span id="settingsCurrencyValue" class="settings-menu__value">USD</span>
             </button>
-          </li>
-        </ul>
+            <ul id="currencyMenu" class="currency-menu settings-submenu" role="listbox" hidden>
+              <li role="presentation">
+                <button class="currency-menu__option" type="button" data-currency="USD" role="option" aria-label="USD">
+                  USD
+                </button>
+              </li>
+              <li role="presentation">
+                <button class="currency-menu__option" type="button" data-currency="BRL" role="option" aria-label="BRL">
+                  BRL
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button
+            id="settingsAboutBtn"
+            class="settings-menu__item"
+            type="button"
+            role="menuitem"
+            data-i18n="about"
+          >
+            About
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -427,7 +486,9 @@
 
   <div id="qrOverlay" class="qr-overlay" hidden>
     <div class="qr-modal">
-      <canvas id="qrCanvas" data-i18n="qrCanvasLabel" data-i18n-attr="aria-label" aria-label="Address QR code"></canvas>
+      <div class="qr-modal__canvas-wrap">
+        <canvas id="qrCanvas" data-i18n="qrCanvasLabel" data-i18n-attr="aria-label" aria-label="Address QR code"></canvas>
+      </div>
       <div id="qrCopyBar" class="qr-modal__copy-bar" hidden>
         <button
           id="qrCopyBtn"
@@ -442,6 +503,33 @@
           </svg>
           <span id="qrCopyBtnLabel" class="qr-modal__copy-label" data-i18n="qrCopyInvoice">Copy invoice</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="aboutOverlay" class="about-overlay" hidden>
+    <div
+      id="aboutModal"
+      class="about-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="aboutTitle"
+    >
+      <div class="about-modal__header">
+        <h2 id="aboutTitle" class="about-modal__title" data-i18n="about">About</h2>
+        <button
+          id="aboutCloseBtn"
+          class="about-modal__close"
+          type="button"
+          data-i18n="aboutClose"
+          data-i18n-attr="aria-label"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+      <div id="aboutBody" class="about-modal__body" tabindex="0">
+        <p class="about-modal__loading" data-i18n="aboutLoading">Loading…</p>
       </div>
     </div>
   </div>
@@ -501,6 +589,7 @@
   <script src="liquid-utils.js"></script>
   <script src="lightning-utils.js"></script>
   <script src="bolt11-decode.js"></script>
+  <script src="about.js"></script>
   <script src="i18n.js"></script>
   <script src="dom.js"></script>
   <script src="state.js"></script>

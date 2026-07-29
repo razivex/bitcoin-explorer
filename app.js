@@ -42,54 +42,61 @@ function bindAppEvents() {
     }
   });
 
+  const refreshDisplayedData = async () => {
+    if (getDisplayCurrency() === "BRL") {
+      await ensureBrlPriceCached();
+    }
+
+    if (typeof updateBlockHeightTooltip === "function") {
+      updateBlockHeightTooltip();
+    }
+
+    if (AppState.lastAppliedTxData && AppDom.txResultEl.classList.contains("show")) {
+      applyTransactionData(AppState.lastAppliedTxData, { silent: true });
+    }
+
+    if (AppState.lastAppliedData && AppDom.resultEl.classList.contains("show")) {
+      applyAddressData(AppState.lastAppliedData, { silent: true });
+    }
+
+    if (
+      AppState.lastAppliedLnData?.kind === "channel" &&
+      AppDom.lnChannelResultEl?.classList.contains("show")
+    ) {
+      applyLightningChannelData(AppState.lastAppliedLnData, { silent: true });
+    }
+
+    if (
+      AppState.lastAppliedLnData?.kind === "address" &&
+      AppDom.lnAddressResultEl?.classList.contains("show")
+    ) {
+      applyLightningAddressData(AppState.lastAppliedLnData, { silent: true });
+    }
+
+    if (
+      AppState.lastAppliedLnData?.kind === "invoice" &&
+      AppDom.lnInvoiceResultEl?.classList.contains("show")
+    ) {
+      applyLightningInvoiceData(AppState.lastAppliedLnData, { silent: true });
+    }
+
+    if (AppDom.invoiceGenerateBtn && !AppDom.invoiceGenerateBtn.disabled) {
+      AppDom.invoiceGenerateBtn.textContent = t("lnInvoiceGenerate");
+    }
+  };
+
   onLanguageChange(() => {
     if (AppDom.lookupBtn.disabled) {
       AppDom.lookupBtn.textContent = t("loading");
     }
-
-    const refreshAfterLanguageChange = async () => {
-      if (getDisplayCurrency() === "BRL") {
-        await ensureBrlPriceCached();
-      }
-
-      updateBlockHeightTooltip();
-
-      if (AppState.lastAppliedTxData && AppDom.txResultEl.classList.contains("show")) {
-        applyTransactionData(AppState.lastAppliedTxData, { silent: true });
-      }
-
-      if (AppState.lastAppliedData && AppDom.resultEl.classList.contains("show")) {
-        applyAddressData(AppState.lastAppliedData, { silent: true });
-      }
-
-      if (
-        AppState.lastAppliedLnData?.kind === "channel" &&
-        AppDom.lnChannelResultEl?.classList.contains("show")
-      ) {
-        applyLightningChannelData(AppState.lastAppliedLnData, { silent: true });
-      }
-
-      if (
-        AppState.lastAppliedLnData?.kind === "address" &&
-        AppDom.lnAddressResultEl?.classList.contains("show")
-      ) {
-        applyLightningAddressData(AppState.lastAppliedLnData, { silent: true });
-      }
-
-      if (
-        AppState.lastAppliedLnData?.kind === "invoice" &&
-        AppDom.lnInvoiceResultEl?.classList.contains("show")
-      ) {
-        applyLightningInvoiceData(AppState.lastAppliedLnData, { silent: true });
-      }
-
-      if (AppDom.invoiceGenerateBtn && !AppDom.invoiceGenerateBtn.disabled) {
-        AppDom.invoiceGenerateBtn.textContent = t("lnInvoiceGenerate");
-      }
-    };
-
-    void refreshAfterLanguageChange();
+    void refreshDisplayedData();
   });
+
+  if (typeof onCurrencyChange === "function") {
+    onCurrencyChange(() => {
+      void refreshDisplayedData();
+    });
+  }
 }
 
 initApp();

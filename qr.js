@@ -2,12 +2,11 @@ let qrCopyResetTimer = null;
 let qrCopyPayload = "";
 
 function getQrSize() {
-  const styles = getComputedStyle(AppDom.cardEl);
-  const horizontalPadding =
-    parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-  const cardContentWidth = AppDom.cardEl.clientWidth - horizontalPadding;
-
-  return Math.floor(Math.min(cardContentWidth, window.innerWidth - 96));
+  // Matches .qr-modal width: min(464px, calc(100vw - 48px)).
+  // Even pixel size keeps Safari scaling clean for dense Lightning QRs.
+  const modalWidth = Math.min(464, Math.max(200, window.innerWidth - 48));
+  const size = Math.floor(modalWidth);
+  return Math.max(160, size - (size % 2));
 }
 
 function resetQrCopyButtonLabel() {
@@ -90,6 +89,24 @@ async function copyQrPayload() {
 }
 
 /**
+ * Force the canvas to fill its square wrapper.
+ * Safari often mis-sizes canvas with width:100% + height:auto, leaving a white strip.
+ */
+function fitQrCanvasToWrapper() {
+  const canvas = AppDom.qrCanvas;
+  if (!canvas) return;
+
+  // Clear library / browser inline sizing so CSS controls display size.
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  canvas.style.maxWidth = "100%";
+  canvas.style.maxHeight = "100%";
+  canvas.style.display = "block";
+  canvas.style.objectFit = "fill";
+  canvas.style.aspectRatio = "1 / 1";
+}
+
+/**
  * @param {string} [payload] Value to encode. Defaults to the current lookup input.
  * @param {{ showCopy?: boolean, ariaLabel?: string }} [options]
  */
@@ -112,12 +129,22 @@ async function showQrCode(payload, options = {}) {
     const qrSize = getQrSize();
     await QRCode.toCanvas(AppDom.qrCanvas, value, {
       width: qrSize,
-      margin: 1,
+      margin: 2,
+      errorCorrectionLevel: "M",
       color: {
         dark: "#000000",
         light: "#ffffff",
       },
     });
+
+    // Ensure bitmap is square (qrcode usually is, but guard denser payloads).
+    if (AppDom.qrCanvas.width !== AppDom.qrCanvas.height) {
+      const side = Math.max(AppDom.qrCanvas.width, AppDom.qrCanvas.height);
+      AppDom.qrCanvas.width = side;
+      AppDom.qrCanvas.height = side;
+    }
+
+    fitQrCanvasToWrapper();
 
     if (AppDom.qrCanvas && options.ariaLabel) {
       AppDom.qrCanvas.setAttribute("aria-label", options.ariaLabel);
@@ -132,6 +159,11 @@ async function showQrCode(payload, options = {}) {
     }
 
     AppDom.qrOverlay.hidden = false;
+
+    // Re-fit after layout so Safari uses the final box size.
+    requestAnimationFrame(() => {
+      fitQrCanvasToWrapper();
+    });
   } catch (err) {
     console.error(err);
     showError(t("errorQrGenerate"));

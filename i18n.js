@@ -1,5 +1,8 @@
 const LANG_STORAGE_KEY = "bitcoin-explorer-language";
+const CURRENCY_STORAGE_KEY = "bitcoin-explorer-currency";
 const DEFAULT_LANG = "en";
+const DEFAULT_CURRENCY = "USD";
+const SUPPORTED_CURRENCIES = ["USD", "BRL"];
 
 const translations = {
   en: {
@@ -137,7 +140,13 @@ const translations = {
     fearGreedGreed: "Greed",
     fearGreedExtremeGreed: "Extreme Greed",
     socialLinks: "Social links",
+    settings: "Settings",
     language: "Language",
+    currency: "Currency",
+    about: "About",
+    aboutClose: "Close",
+    aboutLoading: "Loading…",
+    aboutLoadError: "Could not load the README. Open the project README.md file, or view it on GitHub.",
     muteSounds: "Mute sounds",
     unmuteSounds: "Unmute sounds",
     soundsOn: "Sounds on",
@@ -330,7 +339,14 @@ const translations = {
     fearGreedGreed: "Ganância",
     fearGreedExtremeGreed: "Ganância Extrema",
     socialLinks: "Links sociais",
+    settings: "Configurações",
     language: "Idioma",
+    currency: "Moeda",
+    about: "Sobre",
+    aboutClose: "Fechar",
+    aboutLoading: "Carregando…",
+    aboutLoadError:
+      "Não foi possível carregar o README. Abra o arquivo README.md do projeto, ou veja-o no GitHub.",
     muteSounds: "Silenciar sons",
     unmuteSounds: "Ativar sons",
     soundsOn: "Sons ligados",
@@ -392,8 +408,9 @@ const translations = {
 };
 
 let currentLang = DEFAULT_LANG;
+let currentCurrency = DEFAULT_CURRENCY;
 const languageChangeListeners = [];
-
+const currencyChangeListeners = [];
 function t(key, vars = {}) {
   const table = translations[currentLang] ?? translations[DEFAULT_LANG];
   let text = table[key] ?? translations[DEFAULT_LANG][key] ?? key;
@@ -414,7 +431,7 @@ function getCurrentLang() {
 }
 
 function getDisplayCurrency() {
-  return currentLang === "pt-BR" ? "BRL" : "USD";
+  return currentCurrency;
 }
 
 function loadLanguagePreference() {
@@ -431,6 +448,28 @@ function loadLanguagePreference() {
 function saveLanguagePreference(lang) {
   try {
     localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function loadCurrencyPreference() {
+  try {
+    const stored = localStorage.getItem(CURRENCY_STORAGE_KEY);
+    if (stored && SUPPORTED_CURRENCIES.includes(stored)) {
+      currentCurrency = stored;
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  currentCurrency = DEFAULT_CURRENCY;
+}
+
+function saveCurrencyPreference(currency) {
+  try {
+    localStorage.setItem(CURRENCY_STORAGE_KEY, currency);
   } catch (err) {
     console.error(err);
   }
@@ -460,21 +499,36 @@ function applyStaticTranslations() {
     el.title = t(el.getAttribute("data-i18n-title"));
   });
 
-  updateLangSelectUi();
+  updateSettingsUi();
 }
 
-function updateLangSelectUi() {
-  const langToggleBtn = document.getElementById("langToggleBtn");
-  if (!langToggleBtn) return;
+function updateSettingsUi() {
+  const settingsLangFlag = document.getElementById("settingsLangFlag");
+  if (settingsLangFlag) {
+    settingsLangFlag.classList.remove(
+      "settings-menu__flag--en",
+      "settings-menu__flag--pt-BR",
+    );
+    settingsLangFlag.classList.add(
+      currentLang === "pt-BR"
+        ? "settings-menu__flag--pt-BR"
+        : "settings-menu__flag--en",
+    );
+  }
 
-  langToggleBtn.setAttribute("aria-label", t("language"));
-  langToggleBtn.classList.remove("lang-select--en", "lang-select--pt-BR");
-  langToggleBtn.classList.add(
-    currentLang === "pt-BR" ? "lang-select--pt-BR" : "lang-select--en",
-  );
+  const settingsCurrencyValue = document.getElementById("settingsCurrencyValue");
+  if (settingsCurrencyValue) {
+    settingsCurrencyValue.textContent = currentCurrency;
+  }
 
   document.querySelectorAll(".lang-menu__option").forEach((option) => {
     const isSelected = option.dataset.lang === currentLang;
+    option.classList.toggle("is-selected", isSelected);
+    option.setAttribute("aria-selected", String(isSelected));
+  });
+
+  document.querySelectorAll(".currency-menu__option").forEach((option) => {
+    const isSelected = option.dataset.currency === currentCurrency;
     option.classList.toggle("is-selected", isSelected);
     option.setAttribute("aria-selected", String(isSelected));
   });
@@ -482,21 +536,93 @@ function updateLangSelectUi() {
 
 function closeLangMenu() {
   const langMenu = document.getElementById("langMenu");
-  const langToggleBtn = document.getElementById("langToggleBtn");
-  if (!langMenu || !langToggleBtn) return;
+  const settingsLangBtn = document.getElementById("settingsLangBtn");
+  if (langMenu) langMenu.hidden = true;
+  if (settingsLangBtn) settingsLangBtn.setAttribute("aria-expanded", "false");
+}
 
-  langMenu.hidden = true;
-  langToggleBtn.setAttribute("aria-expanded", "false");
+function closeCurrencyMenu() {
+  const currencyMenu = document.getElementById("currencyMenu");
+  const settingsCurrencyBtn = document.getElementById("settingsCurrencyBtn");
+  if (currencyMenu) currencyMenu.hidden = true;
+  if (settingsCurrencyBtn) {
+    settingsCurrencyBtn.setAttribute("aria-expanded", "false");
+  }
+}
+
+function closeSettingsMenu() {
+  const settingsMenu = document.getElementById("settingsMenu");
+  const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+  if (settingsMenu) settingsMenu.hidden = true;
+  if (settingsToggleBtn) {
+    settingsToggleBtn.setAttribute("aria-expanded", "false");
+  }
+  closeLangMenu();
+  closeCurrencyMenu();
+}
+
+function openSettingsMenu() {
+  const settingsMenu = document.getElementById("settingsMenu");
+  const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+  if (!settingsMenu || !settingsToggleBtn) return;
+
+  closeLangMenu();
+  closeCurrencyMenu();
+  settingsMenu.hidden = false;
+  settingsToggleBtn.setAttribute("aria-expanded", "true");
+}
+
+function toggleSettingsMenu() {
+  const settingsMenu = document.getElementById("settingsMenu");
+  if (!settingsMenu) return;
+
+  if (settingsMenu.hidden) {
+    openSettingsMenu();
+  } else {
+    closeSettingsMenu();
+  }
+}
+
+function openLangMenu() {
+  const langMenu = document.getElementById("langMenu");
+  const settingsLangBtn = document.getElementById("settingsLangBtn");
+  if (!langMenu || !settingsLangBtn) return;
+
+  closeCurrencyMenu();
+  langMenu.hidden = false;
+  settingsLangBtn.setAttribute("aria-expanded", "true");
 }
 
 function toggleLangMenu() {
   const langMenu = document.getElementById("langMenu");
-  const langToggleBtn = document.getElementById("langToggleBtn");
-  if (!langMenu || !langToggleBtn) return;
+  if (!langMenu) return;
 
-  const willOpen = langMenu.hidden;
-  langMenu.hidden = !willOpen;
-  langToggleBtn.setAttribute("aria-expanded", String(willOpen));
+  if (langMenu.hidden) {
+    openLangMenu();
+  } else {
+    closeLangMenu();
+  }
+}
+
+function openCurrencyMenu() {
+  const currencyMenu = document.getElementById("currencyMenu");
+  const settingsCurrencyBtn = document.getElementById("settingsCurrencyBtn");
+  if (!currencyMenu || !settingsCurrencyBtn) return;
+
+  closeLangMenu();
+  currencyMenu.hidden = false;
+  settingsCurrencyBtn.setAttribute("aria-expanded", "true");
+}
+
+function toggleCurrencyMenu() {
+  const currencyMenu = document.getElementById("currencyMenu");
+  if (!currencyMenu) return;
+
+  if (currencyMenu.hidden) {
+    openCurrencyMenu();
+  } else {
+    closeCurrencyMenu();
+  }
 }
 
 function setLanguage(lang) {
@@ -513,44 +639,169 @@ function setLanguage(lang) {
   languageChangeListeners.forEach((listener) => listener(lang));
 }
 
+function setCurrency(currency) {
+  if (!SUPPORTED_CURRENCIES.includes(currency) || currency === currentCurrency) {
+    return;
+  }
+
+  currentCurrency = currency;
+  saveCurrencyPreference(currency);
+  updateSettingsUi();
+  currencyChangeListeners.forEach((listener) => listener(currency));
+}
+
 function onLanguageChange(listener) {
   languageChangeListeners.push(listener);
 }
 
-function initLanguageSelector() {
+function onCurrencyChange(listener) {
+  currencyChangeListeners.push(listener);
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderAboutHtml(text) {
+  const escaped = escapeHtml(text);
+  // Preserve monospaced readability without a full markdown parser.
+  return `<pre class="about-modal__readme">${escaped}</pre>`;
+}
+
+function getAboutText() {
+  // Embedded in about.js (copy of README.md) so About works offline and via file://.
+  if (typeof window.ABOUT_TEXT === "string" && window.ABOUT_TEXT.trim()) {
+    return window.ABOUT_TEXT;
+  }
+  return "";
+}
+
+function hideAboutModal() {
+  const aboutOverlay = document.getElementById("aboutOverlay");
+  if (!aboutOverlay) return;
+  aboutOverlay.hidden = true;
+}
+
+function showAboutModal() {
+  const aboutOverlay = document.getElementById("aboutOverlay");
+  const aboutBody = document.getElementById("aboutBody");
+  if (!aboutOverlay || !aboutBody) return;
+
+  closeSettingsMenu();
+  aboutOverlay.hidden = false;
+
+  const text = getAboutText();
+  if (text) {
+    aboutBody.innerHTML = renderAboutHtml(text);
+    aboutBody.scrollTop = 0;
+    return;
+  }
+
+  aboutBody.innerHTML = `<p class="about-modal__error">${escapeHtml(t("aboutLoadError"))}</p>`;
+}
+
+function initSettings() {
   loadLanguagePreference();
+  loadCurrencyPreference();
   applyStaticTranslations();
 
-  const langToggleBtn = document.getElementById("langToggleBtn");
+  const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+  const settingsMenu = document.getElementById("settingsMenu");
+  const settingsLangBtn = document.getElementById("settingsLangBtn");
+  const settingsCurrencyBtn = document.getElementById("settingsCurrencyBtn");
+  const settingsAboutBtn = document.getElementById("settingsAboutBtn");
   const langMenu = document.getElementById("langMenu");
-  if (!langToggleBtn || !langMenu) return;
+  const currencyMenu = document.getElementById("currencyMenu");
+  const aboutOverlay = document.getElementById("aboutOverlay");
+  const aboutModal = document.getElementById("aboutModal");
+  const aboutCloseBtn = document.getElementById("aboutCloseBtn");
 
-  langToggleBtn.addEventListener("click", (event) => {
+  if (!settingsToggleBtn || !settingsMenu) return;
+
+  settingsToggleBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleSettingsMenu();
+  });
+
+  settingsLangBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleLangMenu();
   });
 
-  langMenu.querySelectorAll(".lang-menu__option").forEach((option) => {
-    option.addEventListener("click", () => {
+  settingsCurrencyBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleCurrencyMenu();
+  });
+
+  settingsAboutBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    showAboutModal();
+  });
+
+  langMenu?.querySelectorAll(".lang-menu__option").forEach((option) => {
+    option.addEventListener("click", (event) => {
+      event.stopPropagation();
       setLanguage(option.dataset.lang);
-      closeLangMenu();
+      closeSettingsMenu();
     });
   });
 
+  currencyMenu?.querySelectorAll(".currency-menu__option").forEach((option) => {
+    option.addEventListener("click", (event) => {
+      event.stopPropagation();
+      setCurrency(option.dataset.currency);
+      closeSettingsMenu();
+    });
+  });
+
+  aboutCloseBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    hideAboutModal();
+  });
+
+  aboutOverlay?.addEventListener("click", (event) => {
+    // Close when clicking the dimmed backdrop (outside the modal panel).
+    if (event.target === aboutOverlay) {
+      hideAboutModal();
+    }
+  });
+
+  aboutModal?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
   document.addEventListener("click", (event) => {
-    if (
-      !langMenu.hidden &&
-      !event.target.closest(".lang-picker")
-    ) {
-      closeLangMenu();
+    if (!event.target.closest(".settings-picker")) {
+      closeSettingsMenu();
     }
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeLangMenu();
+    if (event.key !== "Escape") return;
+
+    if (aboutOverlay && !aboutOverlay.hidden) {
+      hideAboutModal();
+      return;
     }
+
+    closeSettingsMenu();
   });
 }
 
-initLanguageSelector();
+initSettings();
+
+window.t = window.t || t;
+window.getLocale = getLocale;
+window.getCurrentLang = getCurrentLang;
+window.getDisplayCurrency = getDisplayCurrency;
+window.setLanguage = setLanguage;
+window.setCurrency = setCurrency;
+window.onLanguageChange = onLanguageChange;
+window.onCurrencyChange = onCurrencyChange;
+window.showAboutModal = showAboutModal;
+window.hideAboutModal = hideAboutModal;

@@ -285,7 +285,8 @@ function goToHome(event) {
     AppDom.lookupBtn.textContent = t("check");
   }
 
-  AppDom.addressInput?.focus();
+  // Never focus the search field on home — on mobile that opens the keyboard.
+  AppDom.addressInput?.blur();
 }
 
 function getChannelBackTarget() {
