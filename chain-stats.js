@@ -4,8 +4,11 @@ const COINMETRICS_MVRV_URL =
   "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=CapMVRVCur&frequency=1d&page_size=1";
 const BITCOIN_DATA_API = "https://bitcoin-data.com/api/v1";
 const FEAR_GREED_API = "https://api.alternative.me/fng/?limit=1";
+const BLOCKCHAIR_BITCOIN_STATS_URL = "https://api.blockchair.com/bitcoin/stats";
 const MARKET_METRICS_REFRESH_MS = 60 * 60 * 1000;
+const NON_ZERO_ADDRESSES_REFRESH_MS = 60 * 60 * 1000;
 const MARKET_METRICS_CACHE_KEY = "bitcoinExplorer.marketMetrics";
+let lastNonZeroAddressesFetchAt = 0;
 const MAYER_CHEAP_MAX = 1;
 const MAYER_NEUTRAL_MAX = 2.4;
 const MVRV_CHEAP_MAX = 1;
@@ -169,6 +172,14 @@ function updateNetworkTooltip() {
   );
   appendTooltipLine(
     AppDom.networkTooltipEl,
+    t("nonZeroAddresses", {
+      count: formatNonZeroAddressCount(
+        AppState.cachedMiningStats.nonZeroAddresses,
+      ),
+    }),
+  );
+  appendTooltipLine(
+    AppDom.networkTooltipEl,
     t("hashrate", { value: formatHashrate(AppState.cachedMiningStats.hashrate) }),
   );
   appendTooltipLine(
@@ -179,6 +190,13 @@ function updateNetworkTooltip() {
   );
 
   AppDom.networkTooltipEl.hidden = false;
+}
+
+function formatNonZeroAddressCount(count) {
+  if (count === null || count === undefined) return t("na");
+  const value = Number(count);
+  if (!Number.isFinite(value) || value < 0) return t("na");
+  return formatBlockHeight(value);
 }
 
 function updateValuationTooltip() {
@@ -319,6 +337,30 @@ async function fetchMiningStats() {
   }
 }
 
+async function fetchNonZeroAddresses({ force = false } = {}) {
+  const now = Date.now();
+  if (
+    !force &&
+    lastNonZeroAddressesFetchAt > 0 &&
+    now - lastNonZeroAddressesFetchAt < NON_ZERO_ADDRESSES_REFRESH_MS
+  ) {
+    return;
+  }
+
+  lastNonZeroAddressesFetchAt = now;
+
+  try {
+    const data = await fetchJson(BLOCKCHAIR_BITCOIN_STATS_URL);
+    const count = Number(data?.data?.hodling_addresses);
+
+    if (Number.isFinite(count) && count > 0) {
+      AppState.cachedMiningStats.nonZeroAddresses = count;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function fetchBlockHeight() {
   try {
     const [height] = await Promise.all([
@@ -327,6 +369,7 @@ async function fetchBlockHeight() {
       }),
       fetchFiatPrice(),
       fetchMiningStats(),
+      fetchNonZeroAddresses(),
     ]);
 
     AppState.cachedBlockHeight = height;

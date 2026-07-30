@@ -43,12 +43,12 @@ The top bar keeps sound + language controls on the right. On the left:
 | Control | Behavior |
 |---|---|
 | **Bitcoin logo** | Click to return to the main start state (clears the search, hides results, same idea as opening `index.html` fresh). No stats on the logo. |
-| **Network** | Hover for live chain stats: height, blocks to difficulty adjustment, blocks to halving, total supply, hashrate, difficulty. |
+| **Network** | Hover for live chain stats: height, blocks to difficulty adjustment, blocks to halving, total supply, hashrate, difficulty, non-zero balance addresses. |
 | **Valuation** | Hover for market stats: Mayer Multiple, MVRV, Fear & Greed, and BTC price. |
 
 English and Brazilian Portuguese are available. Language and mute preferences stick in `localStorage`.
 
-Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Supply is computed locally from the halving schedule at the current height.
+Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Supply is computed locally from the halving schedule at the current height. Non-zero balance address count comes from Blockchair `GET /bitcoin/stats` (`hodling_addresses`), refreshed at most once per hour.
 
 Mayer Multiple, MVRV, and Fear & Greed are color coded:
 
