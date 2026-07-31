@@ -63,22 +63,41 @@ function getExportColumns() {
   ];
 }
 
-function formatUtcDateTime(date) {
+function formatUtcOffsetLabel(date = new Date()) {
+  // getTimezoneOffset is minutes to add to local time to get UTC (e.g. UTC-3 → 180).
+  // Invert so the label matches the usual UTC±offset convention.
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absMinutes = Math.abs(offsetMinutes);
+  const hours = Math.floor(absMinutes / 60);
+  const minutes = absMinutes % 60;
+
+  if (minutes === 0) {
+    return `UTC${sign}${hours}`;
+  }
+
+  return `UTC${sign}${hours}:${pad2(minutes)}`;
+}
+
+/** Local browser/OS time, same basis as the UI, with offset e.g. "31/07/2026 2:30:00 PM (UTC-3)". */
+function formatExportDateTime(date) {
   if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) {
     return "";
   }
 
+  return `${formatDateTime(date)} (${formatUtcOffsetLabel(date)})`;
+}
+
+/** Filename-safe local stamp: YYYY-MM-DD-HH-mm-ss */
+function formatExportFilenameStamp(date = new Date()) {
   return [
-    date.getUTCFullYear(),
-    pad2(date.getUTCMonth() + 1),
-    pad2(date.getUTCDate()),
-  ].join("-") +
-    " " +
-    [
-      pad2(date.getUTCHours()),
-      pad2(date.getUTCMinutes()),
-      pad2(date.getUTCSeconds()),
-    ].join(":");
+    date.getFullYear(),
+    pad2(date.getMonth() + 1),
+    pad2(date.getDate()),
+    pad2(date.getHours()),
+    pad2(date.getMinutes()),
+    pad2(date.getSeconds()),
+  ].join("-");
 }
 
 function outputMatchesTarget(output, watchTarget) {
@@ -316,7 +335,7 @@ function buildTransactionRow(tx, watchTarget) {
 
   return [
     tx.txid,
-    confirmedDate ? formatUtcDateTime(confirmedDate) : t("na"),
+    confirmedDate ? formatExportDateTime(confirmedDate) : t("na"),
     type,
     amountConfidential ? t("confidential") : satsToBtc(netSats),
     Number.isFinite(sizeBytes) && sizeBytes > 0 ? sizeBytes : "",
@@ -596,7 +615,7 @@ async function exportAddressTransactions() {
       t("exportPhaseDownloading"),
       t("exportProgressDownloading", { total: txTotal }),
     );
-    const stamp = formatUtcDateTime(new Date()).replace(/[:\s]/g, "-");
+    const stamp = formatExportFilenameStamp();
     const chainPrefix = network === "liquid" ? "liquid" : "bitcoin";
     const filename = `${chainPrefix}-txs-${sanitizeFilenamePart(watchTarget.displayValue)}-${stamp}.xlsx`;
     await downloadWorkbook(workbook, filename);

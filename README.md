@@ -331,7 +331,7 @@ Large histories are a bit of a workout (hundreds of requests), so export retries
 
 While retrying you will see something like “Connection issue, retrying…” with attempt count and how many txs are already kept.
 
-**Transactions sheet** columns: Transaction ID, Timestamp Confirmed (UTC), Type (Received/Sent), Amount (BTC), Size (bytes), Size (vB), Fee (sat/vB), Fee (BTC), Block Height, Inputs Count, Outputs Count.
+**Transactions sheet** columns: Transaction ID, Timestamp Confirmed (local browser/OS time with UTC offset, e.g. `31/07/2026 2:30:00 PM (UTC-3)`), Type (Received/Sent), Amount (BTC), Size (bytes), Size (vB), Fee (sat/vB), Fee (BTC), Block Height, Inputs Count, Outputs Count.
 
 **Summary sheet**: address or pubkey, total txs, total received, total sent, current confirmed balance, and the mempool first-seen note.
 
