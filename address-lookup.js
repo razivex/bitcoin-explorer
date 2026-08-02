@@ -122,10 +122,27 @@ async function loadAddressData(address) {
 function applyAddressData(data, { silent = false } = {}) {
   AppState.currentNetwork = data.network || "bitcoin";
 
-  AppDom.balanceBtcEl.textContent = formatAssetAmountLabel(data.confirmedBtc, {
+  const balanceConfidential =
+    data.balanceConfidential || data.confirmedBtc === null;
+  const balanceText = formatAssetAmountLabel(data.confirmedBtc, {
     network: data.network,
-    confidential: data.balanceConfidential || data.confirmedBtc === null,
+    confidential: balanceConfidential,
   });
+  const balanceValue =
+    !balanceConfidential && Number.isFinite(Number(data.confirmedBtc))
+      ? Number(data.confirmedBtc)
+      : null;
+
+  if (typeof setStatValue === "function") {
+    // Animate only on silent refresh of the same address; snap on new lookups.
+    setStatValue(AppDom.balanceBtcEl, {
+      text: balanceText,
+      value: balanceValue,
+      instant: !silent,
+    });
+  } else {
+    AppDom.balanceBtcEl.textContent = balanceText;
+  }
   scheduleBalanceBtcFit();
 
   if (data.balanceConfidential || data.confirmedBtc === null) {

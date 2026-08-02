@@ -27,7 +27,7 @@ Paste any of these into the search box and hit Check:
 ## Tips
 
 • Bitcoin logo (top left) returns you to the home screen
-• Network and Valuation show live chain and market stats
+• Network and Valuation open pages with live chain and market stat cards
 • Settings (gear) covers language, currency, and this About page
 • Sound toggle mutes confirmation / mempool alerts
 • Language and currency choices are saved in your browser

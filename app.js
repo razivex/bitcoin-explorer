@@ -2,6 +2,10 @@ function initApp() {
   loadCachedMarketMetrics();
   startBlockHeightRefresh();
   startMarketMetricsRefresh();
+  // Paint Loading… (or cached values) on Network / Valuation cards immediately.
+  if (typeof updateBlockHeightTooltip === "function") {
+    updateBlockHeightTooltip();
+  }
 }
 
 function bindAppEvents() {
@@ -11,6 +15,9 @@ function bindAppEvents() {
       goToHome(event);
     }
   });
+  if (typeof bindNavViewEvents === "function") {
+    bindNavViewEvents();
+  }
   bindActionMenuEvents();
   bindInvoiceOverlayEvents();
   bindQrEvents();

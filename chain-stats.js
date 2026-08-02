@@ -116,80 +116,241 @@ function getFearGreedTone() {
   return "expensive";
 }
 
-function appendTooltipLine(parent, text) {
-  const line = document.createElement("span");
-  line.className = "top-nav__tooltip-line";
-  line.textContent = text;
-  parent.appendChild(line);
-}
+const STAT_TICK_MS = 700;
+const STAT_DIGIT_HEIGHT_EM = 1.2;
+const statTickTimers = new WeakMap();
 
-function appendTooltipMetricLine(parent, labelKey, valueText, tone) {
-  const line = document.createElement("span");
-  line.className = "top-nav__tooltip-line";
-
-  const label = t(labelKey, { value: "" });
-  line.appendChild(document.createTextNode(label));
-
-  const valueEl = document.createElement("span");
-  valueEl.className = "top-nav__tooltip-metric-value";
+function applyStatTone(el, tone) {
+  el.classList.remove(
+    "stat-card__value--cheap",
+    "stat-card__value--neutral",
+    "stat-card__value--expensive",
+  );
   if (tone) {
-    valueEl.classList.add(`top-nav__tooltip-metric-value--${tone}`);
+    el.classList.add(`stat-card__value--${tone}`);
   }
-  valueEl.textContent = valueText;
-  line.appendChild(valueEl);
-  parent.appendChild(line);
 }
 
-function updateNetworkTooltip() {
-  if (!AppDom.networkTooltipEl || AppState.cachedBlockHeight === null) {
+function flashStatDirection(el, direction) {
+  el.classList.remove("stat-card__value--tick-up", "stat-card__value--tick-down");
+  if (direction === 0) return;
+
+  // Restart CSS animation if the same direction fires again.
+  void el.offsetWidth;
+  el.classList.add(
+    direction > 0 ? "stat-card__value--tick-up" : "stat-card__value--tick-down",
+  );
+
+  const prevTimer = statTickTimers.get(el);
+  if (prevTimer) clearTimeout(prevTimer);
+
+  const timer = setTimeout(() => {
+    el.classList.remove(
+      "stat-card__value--tick-up",
+      "stat-card__value--tick-down",
+    );
+    statTickTimers.delete(el);
+  }, STAT_TICK_MS + 80);
+  statTickTimers.set(el, timer);
+}
+
+function ensureStatOdometer(el) {
+  let root = el.querySelector(":scope > .stat-odometer");
+  if (root) return root;
+
+  el.textContent = "";
+  root = document.createElement("span");
+  root.className = "stat-odometer";
+  el.appendChild(root);
+  return root;
+}
+
+function createStatDigit() {
+  const digit = document.createElement("span");
+  digit.className = "stat-odometer__digit";
+  digit.setAttribute("aria-hidden", "true");
+
+  const reel = document.createElement("span");
+  reel.className = "stat-odometer__reel";
+
+  for (let d = 0; d <= 9; d += 1) {
+    const num = document.createElement("span");
+    num.className = "stat-odometer__num";
+    num.textContent = String(d);
+    reel.appendChild(num);
+  }
+
+  digit.appendChild(reel);
+  return digit;
+}
+
+function setStatDigit(digitEl, nextDigit, { instant = false } = {}) {
+  const reel = digitEl.querySelector(".stat-odometer__reel");
+  if (!reel) return;
+
+  const digit = Number(nextDigit);
+  if (!Number.isFinite(digit)) return;
+
+  if (instant) {
+    reel.style.transition = "none";
+  } else {
+    reel.style.transition = "";
+  }
+
+  reel.style.transform = `translateY(${-digit * STAT_DIGIT_HEIGHT_EM}em)`;
+
+  if (instant) {
+    // Force reflow so later animated updates still transition.
+    void reel.offsetWidth;
+    reel.style.transition = "";
+  }
+
+  digitEl.dataset.digit = String(digit);
+}
+
+function renderStatOdometer(el, text, { instant = false } = {}) {
+  const root = ensureStatOdometer(el);
+  const chars = Array.from(text);
+  const nodes = [...root.children];
+
+  while (nodes.length > chars.length) {
+    const node = nodes.pop();
+    node?.remove();
+  }
+
+  chars.forEach((ch, index) => {
+    const isDigit = ch >= "0" && ch <= "9";
+    let node = root.children[index] || null;
+
+    if (isDigit) {
+      if (!node || !node.classList.contains("stat-odometer__digit")) {
+        const digit = createStatDigit();
+        if (node) {
+          root.replaceChild(digit, node);
+        } else {
+          root.appendChild(digit);
+        }
+        node = digit;
+        setStatDigit(node, ch, { instant: true });
+        return;
+      }
+
+      const prevDigit = node.dataset.digit;
+      const shouldSnap = instant || prevDigit === undefined || prevDigit === ch;
+      setStatDigit(node, ch, { instant: shouldSnap });
+      return;
+    }
+
+    if (!node || !node.classList.contains("stat-odometer__symbol")) {
+      const symbol = document.createElement("span");
+      symbol.className = "stat-odometer__symbol";
+      symbol.setAttribute("aria-hidden", "true");
+      symbol.textContent = ch;
+      if (node) {
+        root.replaceChild(symbol, node);
+      } else {
+        root.appendChild(symbol);
+      }
+      return;
+    }
+
+    if (node.textContent !== ch) {
+      node.textContent = ch;
+    }
+  });
+
+  // Accessible plain text for screen readers.
+  el.setAttribute("aria-label", text);
+}
+
+/**
+ * Update a value with a Google/Robinhood-style digit scroll when the number
+ * moves up or down (network/valuation stats, address balances, etc.).
+ *
+ * @param {HTMLElement | null} el
+ * @param {{
+ *   text: string,
+ *   value?: number | null,
+ *   tone?: string | null,
+ *   instant?: boolean,
+ * }} options
+ */
+function setStatValue(
+  el,
+  { text, value = null, tone = null, instant: forceInstant = false } = {},
+) {
+  if (!el) return;
+
+  const nextText = text == null || text === "" ? t("na") : String(text);
+  const nextNum =
+    value === null || value === undefined || value === ""
+      ? NaN
+      : Number(value);
+  const prevRaw = el.dataset.statValue;
+  const prevNum =
+    prevRaw !== undefined && prevRaw !== "" ? Number(prevRaw) : NaN;
+  const prevText = el.dataset.displayText;
+  const isFirst = prevText === undefined;
+  const valueUnchanged =
+    Number.isFinite(prevNum) && Number.isFinite(nextNum) && prevNum === nextNum;
+
+  applyStatTone(el, tone);
+
+  if (prevText === nextText) {
+    if (Number.isFinite(nextNum)) {
+      el.dataset.statValue = String(nextNum);
+    } else {
+      delete el.dataset.statValue;
+    }
     return;
   }
 
-  const blockHeight = Number(AppState.cachedBlockHeight);
-  if (!Number.isFinite(blockHeight)) return;
+  let direction = 0;
+  if (Number.isFinite(prevNum) && Number.isFinite(nextNum)) {
+    direction = Math.sign(nextNum - prevNum);
+  }
 
-  AppDom.networkTooltipEl.replaceChildren();
+  const instant =
+    forceInstant ||
+    isFirst ||
+    !Number.isFinite(nextNum) ||
+    !Number.isFinite(prevNum) ||
+    valueUnchanged ||
+    direction === 0;
 
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("blockHeight", { height: formatBlockHeight(blockHeight) }),
-  );
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("blocksToDifficulty", {
-      blocks: formatBlockHeight(blocksUntilDifficultyAdjustment(blockHeight)),
-    }),
-  );
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("blocksToHalving", {
-      blocks: formatBlockHeight(blocksUntilHalving(blockHeight)),
-    }),
-  );
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("totalSupply", { amount: formatTotalBtcSupply(blockHeight) }),
-  );
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("nonZeroAddresses", {
-      count: formatNonZeroAddressCount(
-        AppState.cachedMiningStats.nonZeroAddresses,
-      ),
-    }),
-  );
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("hashrate", { value: formatHashrate(AppState.cachedMiningStats.hashrate) }),
-  );
-  appendTooltipLine(
-    AppDom.networkTooltipEl,
-    t("networkDifficulty", {
-      value: formatNetworkDifficulty(AppState.cachedMiningStats.difficulty),
-    }),
-  );
+  renderStatOdometer(el, nextText, { instant });
 
-  AppDom.networkTooltipEl.hidden = false;
+  if (!instant && direction !== 0) {
+    flashStatDirection(el, direction);
+  }
+
+  el.dataset.displayText = nextText;
+  if (Number.isFinite(nextNum)) {
+    el.dataset.statValue = String(nextNum);
+  } else {
+    delete el.dataset.statValue;
+  }
+}
+
+/** Clear odometer state so the next update is treated as a first paint. */
+function resetStatOdometer(el) {
+  if (!el) return;
+  const prevTimer = statTickTimers.get(el);
+  if (prevTimer) {
+    clearTimeout(prevTimer);
+    statTickTimers.delete(el);
+  }
+  el.classList.remove(
+    "stat-card__value--cheap",
+    "stat-card__value--neutral",
+    "stat-card__value--expensive",
+    "stat-card__value--tick-up",
+    "stat-card__value--tick-down",
+  );
+  delete el.dataset.statValue;
+  delete el.dataset.displayText;
+  el.removeAttribute("aria-label");
+  el.textContent = "";
 }
 
 function formatNonZeroAddressCount(count) {
@@ -199,42 +360,204 @@ function formatNonZeroAddressCount(count) {
   return formatBlockHeight(value);
 }
 
-function updateValuationTooltip() {
-  if (!AppDom.valuationTooltipEl) {
+function isFiniteStatValue(value) {
+  return value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
+const loadingStatEls = new Set();
+let statsLoadingTimer = null;
+let statsLoadingDotPhase = 0;
+
+function formatStatsLoadingText() {
+  // Animate "Loading" → "Loading." → "Loading.." → "Loading..."
+  const raw = t("loading");
+  const base = raw.replace(/\.+$/u, "").replace(/…$/u, "").trim() || "Loading";
+  const dots = ".".repeat(statsLoadingDotPhase % 4);
+  return `${base}${dots}`;
+}
+
+function stopStatsLoadingAnimation() {
+  if (statsLoadingTimer !== null) {
+    clearInterval(statsLoadingTimer);
+    statsLoadingTimer = null;
+  }
+}
+
+function tickStatsLoadingAnimation() {
+  statsLoadingDotPhase = (statsLoadingDotPhase + 1) % 4;
+  const text = formatStatsLoadingText();
+  for (const el of loadingStatEls) {
+    el.textContent = text;
+    el.setAttribute("aria-label", text);
+    el.dataset.displayText = text;
+  }
+}
+
+function startStatsLoadingAnimation() {
+  if (statsLoadingTimer !== null) return;
+  statsLoadingTimer = setInterval(tickStatsLoadingAnimation, 420);
+}
+
+function setStatLoading(el) {
+  if (!el) return;
+
+  const wasLoading = el.dataset.statLoading === "1";
+  el.dataset.statLoading = "1";
+  delete el.dataset.statValue;
+  el.classList.remove(
+    "stat-card__value--cheap",
+    "stat-card__value--neutral",
+    "stat-card__value--expensive",
+    "stat-card__value--tick-up",
+    "stat-card__value--tick-down",
+  );
+  el.classList.add("stat-card__value--loading");
+
+  // Drop odometer markup while loading so the label can animate freely.
+  el.textContent = formatStatsLoadingText();
+  el.setAttribute("aria-label", el.textContent);
+  el.dataset.displayText = el.textContent;
+
+  loadingStatEls.add(el);
+  startStatsLoadingAnimation();
+
+  if (!wasLoading) {
+    // Keep phases in sync when a new card joins mid-cycle.
+    el.textContent = formatStatsLoadingText();
+  }
+}
+
+function clearStatLoading(el) {
+  if (!el || el.dataset.statLoading !== "1") return;
+  delete el.dataset.statLoading;
+  el.classList.remove("stat-card__value--loading");
+  loadingStatEls.delete(el);
+  if (loadingStatEls.size === 0) {
+    stopStatsLoadingAnimation();
+  }
+  // Next setStatValue should treat this as a first paint (no fake tick).
+  delete el.dataset.displayText;
+  delete el.dataset.statValue;
+  el.textContent = "";
+}
+
+/**
+ * Show an animated Loading… state until a finite value is available.
+ * @param {HTMLElement | null} el
+ * @param {{
+ *   ready: boolean,
+ *   text?: string,
+ *   value?: number | null,
+ *   tone?: string | null,
+ *   instant?: boolean,
+ * }} options
+ */
+function setStatValueOrLoading(el, { ready, text, value = null, tone = null, instant = false } = {}) {
+  if (!el) return;
+
+  if (!ready) {
+    setStatLoading(el);
     return;
   }
 
-  AppDom.valuationTooltipEl.replaceChildren();
+  clearStatLoading(el);
+  setStatValue(el, { text, value, tone, instant });
+}
 
-  appendTooltipMetricLine(
-    AppDom.valuationTooltipEl,
-    "mayerMultiple",
-    formatMetric(AppState.cachedMarketMetrics.mayerMultiple),
-    getMayerMultipleTone(AppState.cachedMarketMetrics.mayerMultiple),
-  );
-  appendTooltipMetricLine(
-    AppDom.valuationTooltipEl,
-    "mvrvRatio",
-    formatMetric(AppState.cachedMarketMetrics.mvrv),
-    getMvrvTone(AppState.cachedMarketMetrics.mvrv),
-  );
-  appendTooltipMetricLine(
-    AppDom.valuationTooltipEl,
-    "fearGreedIndex",
-    formatFearGreedValue(),
-    getFearGreedTone(),
-  );
-  appendTooltipLine(
-    AppDom.valuationTooltipEl,
-    t("bitcoinPrice", { value: formatTooltipBitcoinPrice() }),
-  );
+function updateNetworkStats() {
+  const blockHeight = Number(AppState.cachedBlockHeight);
+  const hasHeight = Number.isFinite(blockHeight);
 
-  AppDom.valuationTooltipEl.hidden = false;
+  const blocksToDiff = hasHeight
+    ? blocksUntilDifficultyAdjustment(blockHeight)
+    : null;
+  const blocksToHalvingValue = hasHeight ? blocksUntilHalving(blockHeight) : null;
+  const supplyBtc = hasHeight ? totalBtcSupplyFromHeight(blockHeight) : null;
+  const nonZero = AppState.cachedMiningStats.nonZeroAddresses;
+  const hashrate = AppState.cachedMiningStats.hashrate;
+  const difficulty = AppState.cachedMiningStats.difficulty;
+
+  setStatValueOrLoading(AppDom.statBlockHeightEl, {
+    ready: hasHeight,
+    text: hasHeight ? formatBlockHeight(blockHeight) : "",
+    value: hasHeight ? blockHeight : null,
+  });
+  setStatValueOrLoading(AppDom.statHashrateEl, {
+    ready: isFiniteStatValue(hashrate) && Number(hashrate) > 0,
+    text: isFiniteStatValue(hashrate) ? formatHashrate(hashrate) : "",
+    value: isFiniteStatValue(hashrate) ? Number(hashrate) : null,
+  });
+  setStatValueOrLoading(AppDom.statDifficultyEl, {
+    ready: isFiniteStatValue(difficulty) && Number(difficulty) > 0,
+    text: isFiniteStatValue(difficulty)
+      ? formatNetworkDifficulty(difficulty)
+      : "",
+    value: isFiniteStatValue(difficulty) ? Number(difficulty) : null,
+  });
+  setStatValueOrLoading(AppDom.statBlocksToHalvingEl, {
+    ready: blocksToHalvingValue != null,
+    text:
+      blocksToHalvingValue != null
+        ? formatBlockHeight(blocksToHalvingValue)
+        : "",
+    value: blocksToHalvingValue,
+  });
+  setStatValueOrLoading(AppDom.statBlocksToDifficultyEl, {
+    ready: blocksToDiff != null,
+    text: blocksToDiff != null ? formatBlockHeight(blocksToDiff) : "",
+    value: blocksToDiff,
+  });
+  setStatValueOrLoading(AppDom.statTotalSupplyEl, {
+    ready: supplyBtc != null,
+    text:
+      supplyBtc != null ? `${formatTotalBtcSupply(blockHeight)} BTC` : "",
+    value: supplyBtc,
+  });
+  setStatValueOrLoading(AppDom.statNonZeroAddressesEl, {
+    ready: isFiniteStatValue(nonZero) && Number(nonZero) > 0,
+    text: isFiniteStatValue(nonZero) ? formatNonZeroAddressCount(nonZero) : "",
+    value: isFiniteStatValue(nonZero) ? Number(nonZero) : null,
+  });
+}
+
+function updateValuationStats() {
+  const mayer = AppState.cachedMarketMetrics.mayerMultiple;
+  const mvrv = AppState.cachedMarketMetrics.mvrv;
+  const fearGreed = AppState.cachedMarketMetrics.fearGreed;
+  const price = getFiatPrice();
+  const hasMayer = isFiniteStatValue(mayer) && Number(mayer) > 0;
+  const hasMvrv = isFiniteStatValue(mvrv) && Number(mvrv) > 0;
+  const hasFearGreed = isFiniteStatValue(fearGreed);
+  const hasPrice = isFiniteStatValue(price) && Number(price) > 0;
+
+  setStatValueOrLoading(AppDom.statBitcoinPriceEl, {
+    ready: hasPrice,
+    text: hasPrice ? formatFiat(price) : "",
+    value: hasPrice ? Number(price) : null,
+  });
+  setStatValueOrLoading(AppDom.statMayerMultipleEl, {
+    ready: hasMayer,
+    text: hasMayer ? formatMetric(mayer) : "",
+    value: hasMayer ? Number(mayer) : null,
+    tone: hasMayer ? getMayerMultipleTone(mayer) : null,
+  });
+  setStatValueOrLoading(AppDom.statMvrvEl, {
+    ready: hasMvrv,
+    text: hasMvrv ? formatMetric(mvrv) : "",
+    value: hasMvrv ? Number(mvrv) : null,
+    tone: hasMvrv ? getMvrvTone(mvrv) : null,
+  });
+  setStatValueOrLoading(AppDom.statFearGreedEl, {
+    ready: hasFearGreed,
+    text: hasFearGreed ? formatFearGreedValue() : "",
+    value: hasFearGreed ? Number(fearGreed) : null,
+    tone: hasFearGreed ? getFearGreedTone() : null,
+  });
 }
 
 function updateBlockHeightTooltip() {
-  updateNetworkTooltip();
-  updateValuationTooltip();
+  updateNetworkStats();
+  updateValuationStats();
 }
 
 async function fetchMayerMultiple() {
@@ -403,3 +726,5 @@ window.startMarketMetricsRefresh = startMarketMetricsRefresh;
 window.fetchMiningStats = fetchMiningStats;
 window.fetchBlockHeight = fetchBlockHeight;
 window.startBlockHeightRefresh = startBlockHeightRefresh;
+window.setStatValue = setStatValue;
+window.resetStatOdometer = resetStatOdometer;

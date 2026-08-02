@@ -26,14 +26,24 @@
         </svg>
       </a>
       <nav class="top-nav__menu" data-i18n="navStats" data-i18n-attr="aria-label" aria-label="Stats">
-        <div class="top-nav__item">
-          <span class="top-nav__item-label" data-i18n="navNetwork">Network</span>
-          <div id="networkTooltip" class="top-nav__tooltip" role="tooltip" hidden></div>
-        </div>
-        <div class="top-nav__item">
-          <span class="top-nav__item-label" data-i18n="navValuation">Valuation</span>
-          <div id="valuationTooltip" class="top-nav__tooltip" role="tooltip" hidden></div>
-        </div>
+        <button
+          id="navNetworkBtn"
+          class="top-nav__item-btn"
+          type="button"
+          data-view="network"
+          data-i18n="navNetwork"
+        >
+          Network
+        </button>
+        <button
+          id="navValuationBtn"
+          class="top-nav__item-btn"
+          type="button"
+          data-view="valuation"
+          data-i18n="navValuation"
+        >
+          Valuation
+        </button>
       </nav>
     </div>
     <div class="top-nav__controls">
@@ -133,7 +143,7 @@
     </div>
   </header>
 
-  <main class="card">
+  <main id="checkView" class="card app-view" data-view="check">
     <h1 data-i18n="pageHeading">Bitcoin Explorer</h1>
     <p class="sub" data-i18n="pageSub">Real time data explorer for on-chain Bitcoin, Lightning, or Liquid</p>
 
@@ -465,6 +475,72 @@
       <span class="tx-back-btn__label" data-i18n="txBackToChannel">Back to channel</span>
     </button>
 
+    <p class="footer">
+      <span data-i18n="footerCreatedBy">Created by</span>
+      <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer">@razivex</a>
+    </p>
+  </main>
+
+  <main id="networkView" class="card stats-view app-view" data-view="network" hidden>
+    <h1 data-i18n="navNetwork">Network</h1>
+    <p class="sub" data-i18n="networkPageSub">Live Bitcoin network statistics</p>
+    <div class="stats-grid" id="networkStatsGrid">
+      <article class="stat-card stat-card--wide stat-card--centered">
+        <span class="stat-card__label" data-i18n="statLabelHeight">Block Height</span>
+        <span id="statBlockHeight" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelHashrate">Hash Rate</span>
+        <span id="statHashrate" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelDifficulty">Difficulty</span>
+        <span id="statDifficulty" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelHalving">Blocks to Halving</span>
+        <span id="statBlocksToHalving" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelDifficultyAdj">Blocks to Difficult Adjustment</span>
+        <span id="statBlocksToDifficulty" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelSupply">Total Supply</span>
+        <span id="statTotalSupply" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelAddresses">Non-Zero Addresses</span>
+        <span id="statNonZeroAddresses" class="stat-card__value">Loading...</span>
+      </article>
+    </div>
+    <p class="footer">
+      <span data-i18n="footerCreatedBy">Created by</span>
+      <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer">@razivex</a>
+    </p>
+  </main>
+
+  <main id="valuationView" class="card stats-view app-view" data-view="valuation" hidden>
+    <h1 data-i18n="navValuation">Valuation</h1>
+    <p class="sub" data-i18n="valuationPageSub">Live Bitcoin valuation metrics</p>
+    <div class="stats-grid" id="valuationStatsGrid">
+      <article class="stat-card stat-card--wide stat-card--centered">
+        <span class="stat-card__label" data-i18n="statLabelPrice">Bitcoin Price</span>
+        <span id="statBitcoinPrice" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelMayer">Mayer Multiple</span>
+        <span id="statMayerMultiple" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelMvrv">MVRV Ratio</span>
+        <span id="statMvrv" class="stat-card__value">Loading...</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-card__label" data-i18n="statLabelFearGreed">Fear &amp; Greed</span>
+        <span id="statFearGreed" class="stat-card__value">Loading...</span>
+      </article>
+    </div>
     <p class="footer">
       <span data-i18n="footerCreatedBy">Created by</span>
       <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer">@razivex</a>

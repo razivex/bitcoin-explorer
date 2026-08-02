@@ -131,81 +131,43 @@ body {
   min-width: 0;
 }
 
-.top-nav__item {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.top-nav__item-label {
+.top-nav__item-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   height: 40px;
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid #2d3a4d;
   background: rgba(15, 20, 25, 0.45);
   color: rgba(231, 233, 234, 0.88);
+  font-family: inherit;
   font-size: 0.86rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  cursor: default;
+  line-height: 1;
+  cursor: pointer;
   user-select: none;
+  white-space: nowrap;
   transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.top-nav__item:hover .top-nav__item-label {
+.top-nav__item-btn:hover,
+.top-nav__item-btn:focus {
   color: #f7931a;
   border-color: #f7931a;
   background: rgba(15, 20, 25, 0.7);
+  outline: none;
 }
 
-.top-nav__tooltip {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #2d3a4d;
-  background: #111820;
-  color: #e7e9ea;
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
-  z-index: 70;
+.top-nav__item-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.2);
 }
 
-.top-nav__tooltip-line {
-  display: block;
-}
-
-.top-nav__tooltip-metric-value--cheap {
-  color: #3ddc84;
-}
-
-.top-nav__tooltip-metric-value--neutral {
-  color: #f5c542;
-}
-
-.top-nav__tooltip-metric-value--expensive {
-  color: #ff6b7a;
-}
-
-.top-nav__tooltip[hidden] {
-  display: none;
-}
-
-.top-nav__item:hover .top-nav__tooltip:not([hidden]) {
-  opacity: 1;
-  visibility: visible;
+.top-nav__item-btn.is-active {
+  color: #f7931a;
+  border-color: #f7931a;
+  background: rgba(247, 147, 26, 0.12);
 }
 
 .top-nav__controls {
@@ -475,6 +437,134 @@ body {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
+.app-view[hidden] {
+  display: none !important;
+}
+
+.stats-view {
+  max-width: 720px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+#valuationStatsGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #2d3a4d;
+  background: #0f1419;
+}
+
+.stat-card--wide {
+  grid-column: 1 / -1;
+}
+
+.stat-card--centered {
+  align-items: center;
+  text-align: center;
+}
+
+.stat-card--wide .stat-card__value {
+  font-size: 1.6rem;
+}
+
+.stat-card__label {
+  color: #9aa7b8;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.stat-card__value {
+  color: #e7e9ea;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.35s ease;
+}
+
+.stat-card__value--cheap {
+  color: #3ddc84;
+}
+
+.stat-card__value--neutral {
+  color: #f5c542;
+}
+
+.stat-card__value--expensive {
+  color: #ff6b7a;
+}
+
+.stat-card__value--loading {
+  color: #9aa7b8;
+  font-weight: 600;
+  font-variant-numeric: normal;
+}
+
+/* Direction flash when a stat ticks (Robinhood-style). */
+.stat-card__value--tick-up:not(.stat-card__value--cheap):not(
+    .stat-card__value--neutral
+  ):not(.stat-card__value--expensive) {
+  color: #3ddc84;
+}
+
+.stat-card__value--tick-down:not(.stat-card__value--cheap):not(
+    .stat-card__value--neutral
+  ):not(.stat-card__value--expensive) {
+  color: #ff6b7a;
+}
+
+.stat-odometer {
+  display: inline-flex;
+  align-items: center;
+  height: 1.2em;
+  line-height: 1.2em;
+  white-space: nowrap;
+}
+
+.stat-odometer__digit {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  height: 1.2em;
+  width: 1ch;
+  vertical-align: middle;
+}
+
+.stat-odometer__reel {
+  display: block;
+  will-change: transform;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stat-odometer__num {
+  display: block;
+  height: 1.2em;
+  line-height: 1.2em;
+  text-align: center;
+}
+
+.stat-odometer__symbol {
+  display: inline-block;
+  height: 1.2em;
+  line-height: 1.2em;
+  white-space: pre;
+}
+
 h1 {
   margin: 0 0 8px;
   font-size: 1.5rem;
@@ -527,6 +617,39 @@ button {
 }
 
 button:hover { background-color: #ffaa33; }
+
+/* Nav stats buttons must not inherit the primary orange Check style. */
+.top-nav__item-btn,
+.top-nav__item-btn:hover,
+.top-nav__item-btn:focus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #2d3a4d;
+  border-radius: 8px;
+  background-color: rgba(15, 20, 25, 0.45);
+  color: rgba(231, 233, 234, 0.88);
+  font-family: inherit;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.top-nav__item-btn:hover,
+.top-nav__item-btn:focus {
+  color: #f7931a;
+  border-color: #f7931a;
+  background-color: rgba(15, 20, 25, 0.7);
+}
+
+.top-nav__item-btn.is-active,
+.top-nav__item-btn.is-active:hover,
+.top-nav__item-btn.is-active:focus {
+  color: #f7931a;
+  border-color: #f7931a;
+  background-color: rgba(247, 147, 26, 0.12);
+}
 
 .sound-toggle:hover,
 .settings-toggle:hover,
@@ -1177,7 +1300,17 @@ button:disabled {
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
-  line-height: 1.15;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.35s ease;
+}
+
+.balance-btc.stat-card__value--tick-up {
+  color: #3ddc84;
+}
+
+.balance-btc.stat-card__value--tick-down {
+  color: #ff6b7a;
 }
 
 #lnAddressTitle {
@@ -1379,5 +1512,18 @@ button:disabled {
 
   .card {
     margin: auto 16px;
+  }
+
+  .stats-grid,
+  #valuationStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card__value {
+    font-size: 1.1rem;
+  }
+
+  .stat-card--wide .stat-card__value {
+    font-size: 1.35rem;
   }
 }

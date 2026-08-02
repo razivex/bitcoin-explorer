@@ -12,6 +12,9 @@ function resetLookupUiState() {
   if (typeof hideLightningResults === "function") {
     hideLightningResults();
   }
+  if (typeof resetStatOdometer === "function") {
+    resetStatOdometer(AppDom.balanceBtcEl);
+  }
   AppState.currentLookupInput = null;
   AppState.currentNetwork = null;
   AppState.lastTxTimestamp = null;
@@ -285,8 +288,49 @@ function goToHome(event) {
     AppDom.lookupBtn.textContent = t("check");
   }
 
+  if (typeof showAppView === "function") {
+    showAppView("check");
+  }
+
   // Never focus the search field on home — on mobile that opens the keyboard.
   AppDom.addressInput?.blur();
+}
+
+/**
+ * Switch between the check search card and Network / Valuation stats pages.
+ * @param {"check" | "network" | "valuation"} view
+ */
+function showAppView(view) {
+  const next = view === "network" || view === "valuation" ? view : "check";
+
+  const views = [
+    ["check", AppDom.checkViewEl],
+    ["network", AppDom.networkViewEl],
+    ["valuation", AppDom.valuationViewEl],
+  ];
+
+  for (const [name, el] of views) {
+    if (!el) continue;
+    el.hidden = name !== next;
+  }
+
+  AppDom.navNetworkBtn?.classList.toggle("is-active", next === "network");
+  AppDom.navValuationBtn?.classList.toggle("is-active", next === "valuation");
+
+  if (next === "network" || next === "valuation") {
+    if (typeof updateBlockHeightTooltip === "function") {
+      updateBlockHeightTooltip();
+    }
+  }
+}
+
+function bindNavViewEvents() {
+  AppDom.navNetworkBtn?.addEventListener("click", () => {
+    showAppView("network");
+  });
+  AppDom.navValuationBtn?.addEventListener("click", () => {
+    showAppView("valuation");
+  });
 }
 
 function getChannelBackTarget() {
@@ -332,4 +376,6 @@ window.clearLookupBackTarget = clearLookupBackTarget;
 window.getChannelBackTarget = getChannelBackTarget;
 window.goBackFromTransaction = goBackFromTransaction;
 window.goToHome = goToHome;
+window.showAppView = showAppView;
+window.bindNavViewEvents = bindNavViewEvents;
 window.updateTxBackButton = updateTxBackButton;
