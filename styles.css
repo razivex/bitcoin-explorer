@@ -548,7 +548,8 @@ body {
 .stat-odometer__reel {
   display: block;
   will-change: transform;
-  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Fallback; JS sets distance-based duration + stagger per tick. */
+  transition: transform 1.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .stat-odometer__num {

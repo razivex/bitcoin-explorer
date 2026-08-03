@@ -116,9 +116,16 @@ function getFearGreedTone() {
   return "expensive";
 }
 
-const STAT_TICK_MS = 700;
+// Odometer timing: longer base, scales with steps so big rolls stay readable.
 const STAT_DIGIT_HEIGHT_EM = 1.2;
+const STAT_REEL_MIDDLE_BASE = 10; // index of digit 0 in the middle 0–9 copy
+const STAT_DIGIT_MIN_MS = 950;
+const STAT_DIGIT_PER_STEP_MS = 110;
+const STAT_DIGIT_MAX_MS = 1700;
+const STAT_DIGIT_STAGGER_MS = 45;
+const STAT_TICK_MS = STAT_DIGIT_MAX_MS + STAT_DIGIT_STAGGER_MS * 6;
 const statTickTimers = new WeakMap();
+const statDigitAnimTimers = new WeakMap();
 
 function applyStatTone(el, tone) {
   el.classList.remove(
@@ -173,42 +180,102 @@ function createStatDigit() {
   const reel = document.createElement("span");
   reel.className = "stat-odometer__reel";
 
-  for (let d = 0; d <= 9; d += 1) {
-    const num = document.createElement("span");
-    num.className = "stat-odometer__num";
-    num.textContent = String(d);
-    reel.appendChild(num);
+  // Three copies of 0–9 so digits can roll forward/backward past 9↔0
+  // without whipping the full strip in reverse.
+  for (let copy = 0; copy < 3; copy += 1) {
+    for (let d = 0; d <= 9; d += 1) {
+      const num = document.createElement("span");
+      num.className = "stat-odometer__num";
+      num.textContent = String(d);
+      reel.appendChild(num);
+    }
   }
 
   digit.appendChild(reel);
   return digit;
 }
 
-function setStatDigit(digitEl, nextDigit, { instant = false } = {}) {
+function snapStatDigitReel(reel, index) {
+  reel.style.transition = "none";
+  reel.style.transform = `translateY(${-index * STAT_DIGIT_HEIGHT_EM}em)`;
+  // Force reflow so later animated updates still transition.
+  void reel.offsetWidth;
+  reel.style.transition = "";
+}
+
+function setStatDigit(
+  digitEl,
+  nextDigit,
+  { instant = false, direction = 0, delayMs = 0 } = {},
+) {
   const reel = digitEl.querySelector(".stat-odometer__reel");
   if (!reel) return;
 
   const digit = Number(nextDigit);
   if (!Number.isFinite(digit)) return;
 
-  if (instant) {
-    reel.style.transition = "none";
-  } else {
-    reel.style.transition = "";
+  const prevRaw = digitEl.dataset.digit;
+  const prevDigit = prevRaw !== undefined ? Number(prevRaw) : NaN;
+  const middleIndex = STAT_REEL_MIDDLE_BASE + digit;
+
+  const prevAnim = statDigitAnimTimers.get(digitEl);
+  if (prevAnim) {
+    clearTimeout(prevAnim);
+    statDigitAnimTimers.delete(digitEl);
   }
 
-  reel.style.transform = `translateY(${-digit * STAT_DIGIT_HEIGHT_EM}em)`;
-
-  if (instant) {
-    // Force reflow so later animated updates still transition.
-    void reel.offsetWidth;
-    reel.style.transition = "";
+  // Snap when first paint, forced instant, same digit, or no overall direction.
+  if (
+    instant ||
+    direction === 0 ||
+    !Number.isFinite(prevDigit) ||
+    prevDigit === digit
+  ) {
+    snapStatDigitReel(reel, middleIndex);
+    digitEl.dataset.digit = String(digit);
+    return;
   }
 
+  // Roll in the value's direction (wrap 9→0 forward on increases, etc.).
+  const steps =
+    direction > 0
+      ? (digit - prevDigit + 10) % 10
+      : (prevDigit - digit + 10) % 10;
+
+  if (steps === 0) {
+    snapStatDigitReel(reel, middleIndex);
+    digitEl.dataset.digit = String(digit);
+    return;
+  }
+
+  const startIndex = STAT_REEL_MIDDLE_BASE + prevDigit;
+  const endIndex =
+    direction > 0 ? startIndex + steps : startIndex - steps;
+
+  // Longer rolls take more time so the reel doesn't blur past.
+  const durationMs = Math.min(
+    STAT_DIGIT_MAX_MS,
+    STAT_DIGIT_MIN_MS + (steps - 1) * STAT_DIGIT_PER_STEP_MS,
+  );
+
+  snapStatDigitReel(reel, startIndex);
+  reel.style.transition = `transform ${durationMs}ms cubic-bezier(0.16, 1, 0.3, 1) ${delayMs}ms`;
+  reel.style.transform = `translateY(${-endIndex * STAT_DIGIT_HEIGHT_EM}em)`;
   digitEl.dataset.digit = String(digit);
+
+  // After the roll settles, recenter on the middle copy for the next tick.
+  const token = `${digit}:${endIndex}:${durationMs}:${delayMs}`;
+  digitEl.dataset.animToken = token;
+  const timer = setTimeout(() => {
+    statDigitAnimTimers.delete(digitEl);
+    if (digitEl.dataset.animToken !== token) return;
+    if (digitEl.dataset.digit !== String(digit)) return;
+    snapStatDigitReel(reel, middleIndex);
+  }, durationMs + delayMs + 40);
+  statDigitAnimTimers.set(digitEl, timer);
 }
 
-function renderStatOdometer(el, text, { instant = false } = {}) {
+function renderStatOdometer(el, text, { instant = false, direction = 0 } = {}) {
   const root = ensureStatOdometer(el);
   const chars = Array.from(text);
   const nodes = [...root.children];
@@ -217,6 +284,11 @@ function renderStatOdometer(el, text, { instant = false } = {}) {
     const node = nodes.pop();
     node?.remove();
   }
+
+  const digitIndexes = [];
+  chars.forEach((ch, index) => {
+    if (ch >= "0" && ch <= "9") digitIndexes.push(index);
+  });
 
   chars.forEach((ch, index) => {
     const isDigit = ch >= "0" && ch <= "9";
@@ -236,8 +308,16 @@ function renderStatOdometer(el, text, { instant = false } = {}) {
       }
 
       const prevDigit = node.dataset.digit;
-      const shouldSnap = instant || prevDigit === undefined || prevDigit === ch;
-      setStatDigit(node, ch, { instant: shouldSnap });
+      const shouldSnap =
+        instant || prevDigit === undefined || prevDigit === ch;
+      const orderFromRight =
+        digitIndexes.length - 1 - digitIndexes.indexOf(index);
+      const delayMs = shouldSnap ? 0 : orderFromRight * STAT_DIGIT_STAGGER_MS;
+      setStatDigit(node, ch, {
+        instant: shouldSnap,
+        direction: shouldSnap ? 0 : direction,
+        delayMs,
+      });
       return;
     }
 
@@ -318,7 +398,10 @@ function setStatValue(
     valueUnchanged ||
     direction === 0;
 
-  renderStatOdometer(el, nextText, { instant });
+  renderStatOdometer(el, nextText, {
+    instant,
+    direction: instant ? 0 : direction,
+  });
 
   if (!instant && direction !== 0) {
     flashStatDirection(el, direction);
