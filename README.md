@@ -16,37 +16,35 @@ Lightning is supported too. You can open a channel by short ID or full ID, look 
 
 Confirmed history can be exported to Excel (`.xlsx`). Addresses and pubkeys can also be shared as a QR code.
 
-## How to use
-
-Open `index.html`, or run a local server:
-
-```bash
-python -m http.server 8080
-```
-
-Then go to `http://localhost:8080`.
-
-Paste something into the search box and hit **Check**. The same field accepts Bitcoin/Liquid addresses, public keys, txids, Lightning channel IDs, Lightning addresses, and BOLT11 invoices.
-
-How input is classified:
-
-1. 64-character hex is treated as a transaction ID
-2. BOLT11 (`lnbc…`, `lntb…`, optional `lightning:` prefix) is treated as a Lightning invoice
-3. `user@domain` is treated as a Lightning address
-4. Short or full channel IDs are treated as Lightning channels
-5. Everything else goes through the address / public key path
+## Interface
 
 ### Navigation bar
 
-The top bar keeps sound + language controls on the right. On the left:
-
 | Control | Behavior |
 |---|---|
-| **Bitcoin logo** | Click to return to the main start state (clears the search, hides results, same idea as opening `index.html` fresh). No stats on the logo. |
-| **Network** | Hover for live chain stats: height, blocks to difficulty adjustment, blocks to halving, total supply, hashrate, difficulty, non-zero balance addresses. |
-| **Valuation** | Hover for market stats: Mayer Multiple, MVRV, Fear & Greed, and BTC price. |
+| **Bitcoin logo** | Returns to the main search view (clears the search, hides results — same idea as opening the app fresh). |
+| **Network** | Opens a full page of live chain stats as cards (height, hashrate, difficulty, blocks to adjustment/halving, supply, non-zero addresses). |
+| **Valuation** | Opens a full page of market metrics as cards (Bitcoin price, Mayer Multiple, MVRV, Fear & Greed). |
+| **Sound toggle** | Mute or unmute mempool / confirmation alerts. |
+| **Settings (gear)** | Language, display currency, and About. |
 
-English and Brazilian Portuguese are available. Language and mute preferences stick in `localStorage`.
+Language (English / Brazilian Portuguese) and currency (USD / BRL) are independent and both stick in `localStorage`. Sound mute preference is stored too.
+
+Footer social links point to X and GitHub.
+
+### Network and Valuation pages
+
+Network and Valuation are dedicated views with a card grid, not hover tooltips. Values use a digit odometer that rolls smoothly when numbers change (directional wrap, distance-based timing, light stagger). While data is loading, cards show an animated “Loading…” state.
+
+| Network cards | Valuation cards |
+|---|---|
+| Block height | Bitcoin price (selected currency) |
+| Hash rate | Mayer Multiple |
+| Difficulty | MVRV ratio |
+| Blocks to halving | Fear & Greed |
+| Blocks to difficulty adjustment | |
+| Total supply | |
+| Non-zero balance addresses | |
 
 Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Supply is computed locally from the halving schedule at the current height. Non-zero balance address count comes from Blockchair `GET /bitcoin/stats` (`hodling_addresses`), refreshed at most once per hour.
 
@@ -60,6 +58,14 @@ Mayer Multiple, MVRV, and Fear & Greed are color coded:
 
 Market metrics are cached in `localStorage` for an hour so reloads and rate limits hurt less.
 
+### Settings and About
+
+The gear menu offers:
+
+- **Language** — English or Portuguese (`pt-BR`). Labels, errors, date formatting, and re-render of open results update immediately.
+- **Currency** — USD or BRL for balances and the Valuation price card. USD comes from mempool.space `GET /api/v1/prices`; BRL from [CoinGecko](https://api.coingecko.com). Prices are cached so BRL survives the 10 second refresh loop. If a price call fails, the last good value stays up.
+- **About** — short in-app summary from `about.js` (what you can look up, tips, data sources). Not a full README clone.
+
 ### Falling mempool blocks
 
 On load, the app connects to a mempool WebSocket (mempool.space first, then public mirrors) and listens to global mempool traffic. Each new mempool tx drops a small block behind the card.
@@ -67,6 +73,16 @@ On load, the app connects to a mempool WebSocket (mempool.space first, then publ
 Global blocks go from green to red by fee rate (`fee / vsize`). If you are watching an address or pubkey, purple blocks show when a mempool tx touches that target.
 
 Blocks are small squares (about 8 to 18 px) with a ₿ in the middle. At most 36 fall at once; the rest wait in a queue so the page stays smooth. If the socket dies or fails to connect within 5 seconds, the app rotates mirrors and falls back to polling `/api/mempool/recent` every 2.5 seconds.
+
+### Input routing
+
+The same search field accepts Bitcoin/Liquid addresses, public keys, txids, Lightning channel IDs, Lightning addresses, and BOLT11 invoices. Classification order:
+
+1. 64-character hex → transaction ID  
+2. BOLT11 (`lnbc…`, `lntb…`, optional `lightning:` prefix) → Lightning invoice  
+3. `user@domain` → Lightning address  
+4. Short or full channel IDs → Lightning channel  
+5. Everything else → address / public key path  
 
 ### Supported inputs
 
@@ -109,9 +125,9 @@ Tx data refreshes every 10 seconds. A click sound plays when a watched tx confir
 
 ### Lightning channel lookup
 
-For a channel ID you get capacity (BTC), open/closed status, short ID, full ID, network, capacity in sats, created/updated times when available, both nodes (alias + truncated pubkey), and funding/closing txs. Funding and closing transaction IDs are clickable: they fill the search box and open that transaction in the app (same path as typing the txid and hitting Check). Missing values stay as N/A and are not links.
+For a channel ID you get capacity (BTC), open/closed status, short ID, full ID, network, capacity in sats, created/updated times when available, both nodes (alias + truncated pubkey), and funding/closing txs. Funding and closing transaction IDs are clickable: they fill the search box and open that transaction in the app. Missing values stay as N/A and are not links.
 
-When you open a funding or closing tx from a channel, a **Back to channel** button appears above the “Created by” footer (outside the transaction details card). It restores the previous channel lookup in the search box and reloads that channel. A normal new search (typing and Check) clears the back target so the button does not appear on unrelated transactions.
+When you open a funding or closing tx from a channel, a **Back to channel** button appears above the “Created by” footer (outside the transaction details card). It restores the previous channel lookup. A normal new search clears the back target so the button does not appear on unrelated transactions.
 
 Data comes from mempool.space `GET /api/v1/lightning/channels/{id}`. Short IDs are turned into full IDs in the browser:
 
@@ -124,8 +140,6 @@ fullId = (blockHeight << 40) | (txIndex << 16) | outputIndex
 ### Lightning invoice lookup
 
 Paste a BOLT11 payment request (`lnbc…`, `lntb…`, or `lightning:lnbc…`). Decoding runs in the browser via `bolt11-decode.js` — no API call for the invoice body itself.
-
-You get:
 
 | Field | Description |
 |---|---|
@@ -158,19 +172,13 @@ The ⋯ menu on that result has two separate payment options (they do not mix):
 | **Show address QR code** | Open (payer chooses within min/max) | Unlimited | QR of `user@domain` (Lightning Address / LNURL-pay endpoint) |
 | **Generate invoice** | Fixed (you enter sats) | Once | QR of a BOLT11 invoice (`pr`) from the LNURL callback |
 
-#### Show address QR code
+**Show address QR code** shows a QR of the Lightning Address string. Compatible wallets can pay any amount allowed by the host. Use this for donations and open-amount receives.
 
-Shows a QR of the Lightning Address string. Any compatible wallet can pay any amount allowed by the host. The address stays valid for many payments; each payment still uses a fresh bolt11 under the hood on the provider side. Use this for donations and open-amount receives.
+**Generate invoice** opens a form. Amount in sats is required and must sit inside the provider min/max. Optional comment when the host allows it. The app calls the LNURL callback with `amount` in millisats and shows a QR of the returned BOLT11 (`pr`) only — never the address. Under the QR there is a **Copy invoice** button; the full string is not printed on screen.
 
-#### Generate invoice
+Empty amount is rejected; the invoice flow does not fall back to an address QR.
 
-Opens a form. **Amount in sats is required** and must sit inside the provider min/max. Add a comment if the host allows it. Hit **Generate**.
-
-The app calls the LNURL callback with `amount` in millisats and shows a QR of the returned BOLT11 (`pr`) only — never the address. That invoice is a one-time payment request for the chosen amount. Under the QR there is a **Copy invoice** button. The full invoice string is not printed on screen; you copy it instead.
-
-Empty amount is rejected with an error; the invoice flow does not fall back to an address QR. For open amount, use **Show address QR code** instead.
-
-A few practical notes. Invoice requests go straight from the browser to the recipient’s provider, so CORS can block some hosts. If the provider returns `status: "ERROR"` (for example a wallet that is not fully set up), that reason is shown as-is. Discovery can succeed and invoice creation still fail when `maxSendable` is `0` or the wallet is incomplete.
+Invoice requests go straight from the browser to the recipient’s provider, so CORS can block some hosts. If the provider returns `status: "ERROR"`, that reason is shown as-is. Discovery can succeed and invoice creation still fail when `maxSendable` is `0` or the wallet is incomplete.
 
 ## How the app works
 
@@ -187,6 +195,7 @@ Everything is plain HTML, CSS, and JavaScript in the browser. No server code, no
              ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
              │  lookup.js  │          │chain-stats  │          │ blocks-fx   │
              │ route input │          │    .js      │          │    .js      │
+             │ + app views │          │ stats pages │          │ falling ₿   │
              └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
                     │                        │                        │
     ┌───────────────┼───────────────┬────────┴───┐                    │
@@ -203,7 +212,7 @@ Everything is plain HTML, CSS, and JavaScript in the browser. No server code, no
     │ balance-sub.js · tx-sounds.js · qr.js · action-menu.js         │
     │ lightning-utils.js · bolt11-decode.js · lightning-invoice.js   │
     │ liquid-utils.js · tx-export.js · pubkey-utils.js · tx-utils.js │
-    │ i18n.js · sounds.js                                             │
+    │ i18n.js · about.js · sounds.js                                  │
     └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -217,7 +226,7 @@ When you click **Check**, `lookup.js` picks a path.
 
 **Lightning invoice (BOLT11)**
 
-`bolt11-decode.js` matches `lnbc…` / related HRPs (and strips a `lightning:` prefix). The invoice is decoded locally: amount, description, payment hash, timestamps, expiry/status, and destination node when available. See [Lightning invoice lookup](#lightning-invoice-lookup).
+`bolt11-decode.js` matches `lnbc…` / related HRPs (and strips a `lightning:` prefix). The invoice is decoded locally: amount, description, payment hash, timestamps, expiry/status, and destination node when available.
 
 **Lightning address**
 
@@ -255,7 +264,7 @@ That is the **net** of all pending txs, not just the latest one:
 | +0.2 BTC in, −0.1 BTC out | `0.10000000 BTC` |
 | +0.1 BTC in, −0.1 BTC out | `0.00000000 BTC` (still shown if both directions are active) |
 
-Fiat uses the confirmed balance and live spot price. English uses USD from mempool.space `GET /api/v1/prices`. Portuguese uses BRL from [CoinGecko](https://api.coingecko.com) because mempool does not ship BRL. Prices land in a local cache so BRL survives the 10 second refresh loop. If a price call fails, the last good value stays up.
+Fiat uses the confirmed balance and the selected display currency (USD or BRL).
 
 ### Unconfirmed direction arrows
 
@@ -339,7 +348,7 @@ Unconfirmed mempool txs are not exported.
 
 ### Internationalization
 
-`i18n.js` covers English and Brazilian Portuguese. Switching language refreshes labels, errors, date formatting, and currency (USD ↔ BRL) right away. If something is already on screen, it re-renders in the new language without another lookup.
+`i18n.js` covers English and Brazilian Portuguese, plus the settings gear (language submenu, currency submenu, About entry). Switching language refreshes labels, errors, and date formatting right away. Currency can change without changing language. If something is already on screen, it re-renders without another lookup.
 
 ## Public keys vs addresses
 
@@ -409,7 +418,7 @@ See [Transaction lookup](#transaction-lookup).
 | Field | Description |
 |---|---|
 | BTC Balance | Confirmed balance in BTC |
-| Fiat / Unconfirmed | Fiat of confirmed balance; with mempool activity it alternates every 10 s with net unconfirmed and arrows |
+| Fiat / Unconfirmed | Fiat of confirmed balance in the selected currency; with mempool activity it alternates every 10 s with net unconfirmed and arrows |
 
 ### Details (on-chain address / public key)
 
@@ -431,8 +440,8 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 
 | File | Purpose |
 |---|---|
-| `index.html` | Layout, search, result panels, menus, QR overlay, invoice form, export overlay |
-| `styles.css` | Dark theme, animations, invoice/QR UI |
+| `index.html` | Layout, search, result panels, Network/Valuation views, settings, About/QR/invoice/export overlays |
+| `styles.css` | Dark theme, animations, stats cards, invoice/QR/About UI |
 | `app.js` | Startup and event wiring |
 | `api-client.js` | Mempool client, timeouts, provider fallbacks |
 | `dom.js` | DOM refs (`AppDom`) |
@@ -440,7 +449,7 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | `format.js` | Dates, BTC, fiat, numbers |
 | `btc.js` | Balance math, address types, supply, unconfirmed helpers |
 | `liquid-utils.js` | Liquid detection, types, amount labels |
-| `prices.js` | Fiat price fetch and cache |
+| `prices.js` | Fiat price fetch and cache (USD / BRL) |
 | `ui.js` | Errors, timers, text fitting |
 | `balance-sub.js` | Fiat / unconfirmed subtitle cycle |
 | `tx-sounds.js` | Sound triggers for address and tx watches |
@@ -450,14 +459,15 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | `bolt11-decode.js` | BOLT11 bech32 decode, amount/tags/expiry, optional payee recovery |
 | `lightning-lookup.js` | LN channel, address, and invoice load/render |
 | `lightning-invoice.js` | Invoice form and BOLT11 request (from LN address) |
-| `lookup.js` | Input routing, home reset, in-app search navigation, channel back target |
+| `lookup.js` | Input routing, home reset, app views (check / network / valuation), channel back target |
 | `qr.js` | QR overlay and invoice copy button |
 | `action-menu.js` | ⋯ menus |
 | `tx-export.js` | Excel export with retry/resume |
-| `chain-stats.js` | Height, mining, market metrics, Network/Valuation tooltips |
+| `chain-stats.js` | Network/Valuation cards, odometer ticks, market metrics |
 | `pubkey-utils.js` | Pubkey detection, P2PK script, scripthash |
 | `tx-utils.js` | Txid validation and embedded data detection |
-| `i18n.js` | EN / pt-BR strings and language picker |
+| `i18n.js` | EN / pt-BR strings, settings menu, language and currency prefs |
+| `about.js` | About modal copy |
 | `sounds.js` | Web Audio alerts and mute |
 | `blocks-fx.js` | Mempool WS, falling blocks, fee colors |
 | `favicon.svg` | Favicon |
@@ -479,6 +489,7 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | [CoinMetrics Community API](https://community-api.coinmetrics.io/) | community-api.coinmetrics.io | MVRV fallback |
 | [bitcoin-data.com API](https://bitcoin-data.com/) | bitcoin-data.com | Primary Mayer and MVRV |
 | [Alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | api.alternative.me | Fear & Greed |
+| [Blockchair](https://blockchair.com/api) | api.blockchair.com | Non-zero address count |
 | Web Crypto API | Browser | SHA-256 for scripthash |
 | Web Audio API | Browser | Alert sounds |
 
