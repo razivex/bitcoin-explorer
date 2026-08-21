@@ -56,6 +56,7 @@ window.AppState = {
   cachedMiningStats: {
     hashrate: null,
     difficulty: null,
+    feeRate: null,
     nonZeroAddresses: null,
   },
   blockHeightInterval: null,

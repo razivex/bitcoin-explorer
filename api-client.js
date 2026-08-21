@@ -186,6 +186,15 @@ async function fetchMempoolMiningStats() {
   return result;
 }
 
+async function fetchMempoolRecommendedFees() {
+  return fetchMempoolOnlyJson("/v1/fees/recommended", {
+    validate: (payload) =>
+      payload &&
+      typeof payload === "object" &&
+      Number(payload.fastestFee) > 0,
+  });
+}
+
 async function fetchMempoolTransactionTimes(txid) {
   const encodedTxid = encodeURIComponent(txid);
   return fetchMempoolOnlyJson(
@@ -249,6 +258,7 @@ window.fetchLiquidText = fetchLiquidText;
 window.fetchLiquidTipHeight = fetchLiquidTipHeight;
 window.fetchMempoolPrices = fetchMempoolPrices;
 window.fetchMempoolMiningStats = fetchMempoolMiningStats;
+window.fetchMempoolRecommendedFees = fetchMempoolRecommendedFees;
 window.fetchMempoolTransactionTimes = fetchMempoolTransactionTimes;
 window.fetchMempoolBlockAudit = fetchMempoolBlockAudit;
 window.fetchMempoolRecent = fetchMempoolRecent;

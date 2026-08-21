@@ -452,6 +452,16 @@ body {
   margin-bottom: 8px;
 }
 
+.stats-row {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+}
+
+.stats-row--trio {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 #valuationStatsGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1519,7 +1529,8 @@ button:disabled {
   }
 
   .stats-grid,
-  #valuationStatsGrid {
+  #valuationStatsGrid,
+  .stats-row--trio {
     grid-template-columns: 1fr;
   }
 

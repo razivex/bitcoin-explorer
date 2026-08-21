@@ -23,7 +23,7 @@ Confirmed history can be exported to Excel (`.xlsx`). Addresses and pubkeys can 
 | Control | Behavior |
 |---|---|
 | **Bitcoin logo** | Returns to the main search view (clears the search, hides results — same idea as opening the app fresh). |
-| **Network** | Opens a full page of live chain stats as cards (height, hashrate, difficulty, blocks to adjustment/halving, supply, non-zero addresses). |
+| **Network** | Opens a full page of live chain stats as cards (height, hashrate, high-priority fee rate, difficulty, blocks to adjustment/halving, supply, non-zero addresses). |
 | **Valuation** | Opens a full page of market metrics as cards (Bitcoin price, Mayer Multiple, MVRV, Fear & Greed). |
 | **Sound toggle** | Mute or unmute mempool / confirmation alerts. |
 | **Settings (gear)** | Language, display currency, and About. |
@@ -40,13 +40,14 @@ Network and Valuation are dedicated views with a card grid, not hover tooltips. 
 |---|---|
 | Block height | Bitcoin price (selected currency) |
 | Hash rate | Mayer Multiple |
-| Difficulty | MVRV ratio |
-| Blocks to halving | Fear & Greed |
+| Fee rate (high priority, sat/vB) | MVRV ratio |
+| Difficulty | Fear & Greed |
+| Blocks to halving | |
 | Blocks to difficulty adjustment | |
 | Total supply | |
 | Non-zero balance addresses | |
 
-Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. Supply is computed locally from the halving schedule at the current height. Non-zero balance address count comes from Blockchair `GET /bitcoin/stats` (`hodling_addresses`), refreshed at most once per hour.
+Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. The fee rate card uses mempool.space high priority (`fastestFee`) from `GET /api/v1/fees/recommended`. Supply is computed locally from the halving schedule at the current height. Non-zero balance address count comes from Blockchair `GET /bitcoin/stats` (`hodling_addresses`), refreshed at most once per hour.
 
 Mayer Multiple, MVRV, and Fear & Greed are color coded:
 

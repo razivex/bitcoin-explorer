@@ -173,6 +173,17 @@ function formatHashrate(hashrateHs) {
   return amountShortener(hashrateHs, 2, "H/s");
 }
 
+function formatFeeRate(satPerVb) {
+  const value = Number(satPerVb);
+  if (!Number.isFinite(value) || value < 0) return "";
+
+  const formatted = Number.isInteger(value)
+    ? String(value)
+    : String(Number(value.toFixed(2)));
+
+  return `${formatted} sat/vB`;
+}
+
 function formatNetworkDifficulty(difficulty) {
   return amountShortener(difficulty, 2);
 }
@@ -189,4 +200,5 @@ window.formatBlockHeight = formatBlockHeight;
 window.formatMetric = formatMetric;
 window.amountShortener = amountShortener;
 window.formatHashrate = formatHashrate;
+window.formatFeeRate = formatFeeRate;
 window.formatNetworkDifficulty = formatNetworkDifficulty;

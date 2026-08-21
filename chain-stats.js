@@ -558,6 +558,7 @@ function updateNetworkStats() {
   const supplyBtc = hasHeight ? totalBtcSupplyFromHeight(blockHeight) : null;
   const nonZero = AppState.cachedMiningStats.nonZeroAddresses;
   const hashrate = AppState.cachedMiningStats.hashrate;
+  const feeRate = AppState.cachedMiningStats.feeRate;
   const difficulty = AppState.cachedMiningStats.difficulty;
 
   setStatValueOrLoading(AppDom.statBlockHeightEl, {
@@ -569,6 +570,11 @@ function updateNetworkStats() {
     ready: isFiniteStatValue(hashrate) && Number(hashrate) > 0,
     text: isFiniteStatValue(hashrate) ? formatHashrate(hashrate) : "",
     value: isFiniteStatValue(hashrate) ? Number(hashrate) : null,
+  });
+  setStatValueOrLoading(AppDom.statFeeRateEl, {
+    ready: isFiniteStatValue(feeRate) && Number(feeRate) > 0,
+    text: isFiniteStatValue(feeRate) ? formatFeeRate(feeRate) : "",
+    value: isFiniteStatValue(feeRate) ? Number(feeRate) : null,
   });
   setStatValueOrLoading(AppDom.statDifficultyEl, {
     ready: isFiniteStatValue(difficulty) && Number(difficulty) > 0,
@@ -743,6 +749,19 @@ async function fetchMiningStats() {
   }
 }
 
+async function fetchRecommendedFees() {
+  try {
+    const data = await fetchMempoolRecommendedFees();
+    const feeRate = Number(data?.fastestFee);
+
+    if (Number.isFinite(feeRate) && feeRate > 0) {
+      AppState.cachedMiningStats.feeRate = feeRate;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function fetchNonZeroAddresses({ force = false } = {}) {
   const now = Date.now();
   if (
@@ -775,6 +794,7 @@ async function fetchBlockHeight() {
       }),
       fetchFiatPrice(),
       fetchMiningStats(),
+      fetchRecommendedFees(),
       fetchNonZeroAddresses(),
     ]);
 
@@ -807,6 +827,7 @@ window.updateBlockHeightTooltip = updateBlockHeightTooltip;
 window.fetchMarketMetrics = fetchMarketMetrics;
 window.startMarketMetricsRefresh = startMarketMetricsRefresh;
 window.fetchMiningStats = fetchMiningStats;
+window.fetchRecommendedFees = fetchRecommendedFees;
 window.fetchBlockHeight = fetchBlockHeight;
 window.startBlockHeightRefresh = startBlockHeightRefresh;
 window.setStatValue = setStatValue;
