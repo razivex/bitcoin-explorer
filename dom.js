@@ -106,6 +106,7 @@ window.AppDom = {
   statBlocksToHalvingEl: document.getElementById("statBlocksToHalving"),
   statTotalSupplyEl: document.getElementById("statTotalSupply"),
   statNonZeroAddressesEl: document.getElementById("statNonZeroAddresses"),
+  statTotalTransactionsEl: document.getElementById("statTotalTransactions"),
   statHashrateEl: document.getElementById("statHashrate"),
   statFeeRateEl: document.getElementById("statFeeRate"),
   statDifficultyEl: document.getElementById("statDifficulty"),

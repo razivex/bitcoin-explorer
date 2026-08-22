@@ -458,6 +458,10 @@ body {
   gap: 12px;
 }
 
+.stats-row--duo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .stats-row--trio {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1530,6 +1534,7 @@ button:disabled {
 
   .stats-grid,
   #valuationStatsGrid,
+  .stats-row--duo,
   .stats-row--trio {
     grid-template-columns: 1fr;
   }

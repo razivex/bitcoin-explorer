@@ -170,16 +170,22 @@ function scheduleSpawnTick(delayMs) {
 
 function notifyNewMempoolTxs(txs, variant = "default") {
   const entries = [];
+  let uniqueNew = 0;
 
   for (const tx of txs) {
     const txid = typeof tx === "string" ? tx : tx?.txid;
     if (!txid || seenTxids.has(txid)) continue;
 
     rememberTxid(txid);
+    uniqueNew += 1;
     entries.push({
       variant,
       feeRate: typeof tx === "object" ? getFeeRateFromTx(tx) : null,
     });
+  }
+
+  if (uniqueNew > 0) {
+    window.addLiveMempoolTransactions?.(uniqueNew);
   }
 
   enqueueBlockEntries(entries);

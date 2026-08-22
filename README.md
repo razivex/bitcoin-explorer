@@ -39,15 +39,16 @@ Network and Valuation are dedicated views with a card grid, not hover tooltips. 
 | Network cards | Valuation cards |
 |---|---|
 | Block height | Bitcoin price (selected currency) |
-| Hash rate | Mayer Multiple |
-| Fee rate (high priority, sat/vB) | MVRV ratio |
-| Difficulty | Fear & Greed |
-| Blocks to halving | |
-| Blocks to difficulty adjustment | |
+| Blocks to halving | Mayer Multiple |
+| Blocks to difficulty adjustment | MVRV ratio |
+| Hash rate | Fear & Greed |
+| Fee rate (high priority, sat/vB) | |
+| Difficulty | |
 | Total supply | |
+| Total transactions since genesis | |
 | Non-zero balance addresses | |
 
-Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. The fee rate card uses mempool.space high priority (`fastestFee`) from `GET /api/v1/fees/recommended`. Supply is computed locally from the halving schedule at the current height. Non-zero balance address count comes from Blockchair `GET /bitcoin/stats` (`hodling_addresses`), refreshed at most once per hour.
+Hashrate and difficulty come from mempool.space `GET /api/v1/mining/hashrate/3d`. The fee rate card uses mempool.space high priority (`fastestFee`) from `GET /api/v1/fees/recommended`. Supply is computed locally from the halving schedule at the current height. Non-zero balance address count and total confirmed transactions since genesis come from Blockchair `GET /bitcoin/stats` (`hodling_addresses` and `transactions`), refreshed at most once per hour. Total transactions fall back to Blockchain.com `GET /charts/n-transactions-total` if Blockchair omits that field. The Total Transactions card starts at confirmed count plus the current mempool size from mempool.space `GET /mempool` (`count`), then ticks up for every unique new mempool transaction from the same WebSocket `track-mempool` feed (and `/mempool/recent` fallback) used by the falling-blocks animation, without the animation's concurrent-block cap.
 
 Mayer Multiple, MVRV, and Fear & Greed are color coded:
 
@@ -485,12 +486,12 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live mempool and watched address events |
 | [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | blockstream.info | Fallback chain endpoints; Liquid via `/liquid` |
 | LNURL-pay | `https://{domain}/.well-known/lnurlp/{user}` | Lightning addresses and invoices |
-| [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | blockchain.info | Hashrate / difficulty fallback |
+| [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | blockchain.info | Hashrate / difficulty fallback; total transaction count fallback |
 | [CoinGecko API](https://www.coingecko.com/en/api) | api.coingecko.com | BRL, USD fallback, Mayer fallback |
 | [CoinMetrics Community API](https://community-api.coinmetrics.io/) | community-api.coinmetrics.io | MVRV fallback |
 | [bitcoin-data.com API](https://bitcoin-data.com/) | bitcoin-data.com | Primary Mayer and MVRV |
 | [Alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | api.alternative.me | Fear & Greed |
-| [Blockchair](https://blockchair.com/api) | api.blockchair.com | Non-zero address count |
+| [Blockchair](https://blockchair.com/api) | api.blockchair.com | Non-zero address count; total transaction count |
 | Web Crypto API | Browser | SHA-256 for scripthash |
 | Web Audio API | Browser | Alert sounds |
 

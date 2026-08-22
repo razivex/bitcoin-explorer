@@ -219,6 +219,16 @@ async function fetchMempoolRecent() {
   });
 }
 
+async function fetchMempoolInfo() {
+  return fetchMempoolJson("/mempool", {
+    validate: (data) =>
+      data &&
+      typeof data === "object" &&
+      Number.isFinite(Number(data.count)) &&
+      Number(data.count) >= 0,
+  });
+}
+
 async function fetchLiquidJson(path, options = {}) {
   const providers = options.providers || LIQUID_API_PROVIDERS;
   const { parse = "json", validate, timeoutMs } = options;
@@ -262,4 +272,5 @@ window.fetchMempoolRecommendedFees = fetchMempoolRecommendedFees;
 window.fetchMempoolTransactionTimes = fetchMempoolTransactionTimes;
 window.fetchMempoolBlockAudit = fetchMempoolBlockAudit;
 window.fetchMempoolRecent = fetchMempoolRecent;
+window.fetchMempoolInfo = fetchMempoolInfo;
 window.getMempoolWsProviders = getMempoolWsProviders;

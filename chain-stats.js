@@ -5,8 +5,13 @@ const COINMETRICS_MVRV_URL =
 const BITCOIN_DATA_API = "https://bitcoin-data.com/api/v1";
 const FEAR_GREED_API = "https://api.alternative.me/fng/?limit=1";
 const BLOCKCHAIR_BITCOIN_STATS_URL = "https://api.blockchair.com/bitcoin/stats";
+const BLOCKCHAIN_INFO_TX_TOTAL_URL =
+  "https://api.blockchain.info/charts/n-transactions-total?timespan=1year&format=json";
 const MARKET_METRICS_REFRESH_MS = 60 * 60 * 1000;
 const NON_ZERO_ADDRESSES_REFRESH_MS = 60 * 60 * 1000;
+const LIVE_TX_FLUSH_MS = 1000;
+let liveTxFlushTimer = null;
+let mempoolSnapshotReady = false;
 const MARKET_METRICS_CACHE_KEY = "bitcoinExplorer.marketMetrics";
 let lastNonZeroAddressesFetchAt = 0;
 const MAYER_CHEAP_MAX = 1;
@@ -443,6 +448,47 @@ function formatNonZeroAddressCount(count) {
   return formatBlockHeight(value);
 }
 
+function formatTotalTransactionCount(count) {
+  return formatNonZeroAddressCount(count);
+}
+
+function getDisplayedTransactionCount() {
+  const confirmed = Number(AppState.cachedMiningStats.totalTransactions);
+  if (!Number.isFinite(confirmed) || confirmed <= 0) return null;
+
+  const mempool = Number(AppState.cachedMiningStats.mempoolTxCount);
+  if (!Number.isFinite(mempool) || mempool < 0) return null;
+
+  const live = Number(AppState.cachedMiningStats.liveMempoolTxAdds);
+  const extra = Number.isFinite(live) && live > 0 ? live : 0;
+  return confirmed + mempool + extra;
+}
+
+function applyConfirmedTransactionCount(count) {
+  const next = Number(count);
+  if (!Number.isFinite(next) || next <= 0) return;
+
+  AppState.cachedMiningStats.totalTransactions = next;
+}
+
+function addLiveMempoolTransactions(count) {
+  const n = Number(count);
+  if (!Number.isFinite(n) || n <= 0) return;
+  if (!mempoolSnapshotReady) return;
+
+  AppState.cachedMiningStats.liveMempoolTxAdds =
+    (Number(AppState.cachedMiningStats.liveMempoolTxAdds) || 0) + n;
+
+  if (!isFiniteStatValue(AppState.cachedMiningStats.totalTransactions)) return;
+
+  if (liveTxFlushTimer !== null) return;
+
+  liveTxFlushTimer = window.setTimeout(() => {
+    liveTxFlushTimer = null;
+    updateNetworkStats();
+  }, LIVE_TX_FLUSH_MS);
+}
+
 function isFiniteStatValue(value) {
   return value !== null && value !== undefined && Number.isFinite(Number(value));
 }
@@ -557,6 +603,7 @@ function updateNetworkStats() {
   const blocksToHalvingValue = hasHeight ? blocksUntilHalving(blockHeight) : null;
   const supplyBtc = hasHeight ? totalBtcSupplyFromHeight(blockHeight) : null;
   const nonZero = AppState.cachedMiningStats.nonZeroAddresses;
+  const totalTxs = getDisplayedTransactionCount();
   const hashrate = AppState.cachedMiningStats.hashrate;
   const feeRate = AppState.cachedMiningStats.feeRate;
   const difficulty = AppState.cachedMiningStats.difficulty;
@@ -606,6 +653,13 @@ function updateNetworkStats() {
     ready: isFiniteStatValue(nonZero) && Number(nonZero) > 0,
     text: isFiniteStatValue(nonZero) ? formatNonZeroAddressCount(nonZero) : "",
     value: isFiniteStatValue(nonZero) ? Number(nonZero) : null,
+  });
+  setStatValueOrLoading(AppDom.statTotalTransactionsEl, {
+    ready: isFiniteStatValue(totalTxs) && Number(totalTxs) > 0,
+    text: isFiniteStatValue(totalTxs)
+      ? formatTotalTransactionCount(totalTxs)
+      : "",
+    value: isFiniteStatValue(totalTxs) ? Number(totalTxs) : null,
   });
 }
 
@@ -762,6 +816,40 @@ async function fetchRecommendedFees() {
   }
 }
 
+async function fetchTotalTransactionsFallback() {
+  try {
+    const data = await fetchJson(BLOCKCHAIN_INFO_TX_TOTAL_URL);
+    const values = Array.isArray(data?.values) ? data.values : [];
+    const latest = values[values.length - 1];
+    const count = Number(latest?.y);
+
+    if (Number.isFinite(count) && count > 0) {
+      applyConfirmedTransactionCount(count);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function fetchMempoolPendingCount() {
+  try {
+    const data = await fetchMempoolInfo();
+    const count = Number(data?.count);
+
+    if (Number.isFinite(count) && count >= 0) {
+      AppState.cachedMiningStats.mempoolTxCount = count;
+      AppState.cachedMiningStats.liveMempoolTxAdds = 0;
+    }
+  } catch (err) {
+    console.error(err);
+    if (!isFiniteStatValue(AppState.cachedMiningStats.mempoolTxCount)) {
+      AppState.cachedMiningStats.mempoolTxCount = 0;
+    }
+  } finally {
+    mempoolSnapshotReady = true;
+  }
+}
+
 async function fetchNonZeroAddresses({ force = false } = {}) {
   const now = Date.now();
   if (
@@ -774,16 +862,28 @@ async function fetchNonZeroAddresses({ force = false } = {}) {
 
   lastNonZeroAddressesFetchAt = now;
 
-  try {
-    const data = await fetchJson(BLOCKCHAIR_BITCOIN_STATS_URL);
-    const count = Number(data?.data?.hodling_addresses);
+  const blockchairPromise = (async () => {
+    try {
+      const data = await fetchJson(BLOCKCHAIR_BITCOIN_STATS_URL);
+      const count = Number(data?.data?.hodling_addresses);
+      const transactions = Number(data?.data?.transactions);
 
-    if (Number.isFinite(count) && count > 0) {
-      AppState.cachedMiningStats.nonZeroAddresses = count;
+      if (Number.isFinite(count) && count > 0) {
+        AppState.cachedMiningStats.nonZeroAddresses = count;
+      }
+
+      if (Number.isFinite(transactions) && transactions > 0) {
+        applyConfirmedTransactionCount(transactions);
+        return;
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
+
+    await fetchTotalTransactionsFallback();
+  })();
+
+  await Promise.all([blockchairPromise, fetchMempoolPendingCount()]);
 }
 
 async function fetchBlockHeight() {
@@ -830,5 +930,6 @@ window.fetchMiningStats = fetchMiningStats;
 window.fetchRecommendedFees = fetchRecommendedFees;
 window.fetchBlockHeight = fetchBlockHeight;
 window.startBlockHeightRefresh = startBlockHeightRefresh;
+window.addLiveMempoolTransactions = addLiveMempoolTransactions;
 window.setStatValue = setStatValue;
 window.resetStatOdometer = resetStatOdometer;
