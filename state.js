@@ -1,6 +1,7 @@
 window.AppConstants = {
   SATS_PER_BTC: 100_000_000,
   UPDATE_INTERVAL_MS: 10000,
+  PRICE_POLL_MS: 1000,
   BALANCE_SUB_FADE_MS: 600,
   DIFFICULTY_ADJUSTMENT_INTERVAL: 2016,
   HALVING_INTERVAL: 210_000,
@@ -15,6 +16,7 @@ window.AppState = {
   txAutoRefreshInterval: null,
   balanceSubInterval: null,
   autoRefreshInterval: null,
+  pricePollInterval: null,
   refreshInFlight: false,
   lookupGeneration: 0,
   txLookupGeneration: 0,

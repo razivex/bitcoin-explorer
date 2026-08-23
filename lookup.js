@@ -23,6 +23,10 @@ function resetLookupUiState() {
   AppState.currentLnAddress = null;
   clearWatchedLookup();
   resetTxWatchState();
+
+  if (typeof syncLivePricePolling === "function") {
+    syncLivePricePolling();
+  }
 }
 
 async function lookupTransaction() {
@@ -321,6 +325,10 @@ function showAppView(view) {
     if (typeof updateBlockHeightTooltip === "function") {
       updateBlockHeightTooltip();
     }
+  }
+
+  if (typeof syncLivePricePolling === "function") {
+    syncLivePricePolling();
   }
 }
 

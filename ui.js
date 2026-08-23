@@ -6,6 +6,9 @@ function showError(message) {
   if (typeof hideLightningResults === "function") {
     hideLightningResults();
   }
+  if (typeof syncLivePricePolling === "function") {
+    syncLivePricePolling();
+  }
 }
 
 function clearError() {

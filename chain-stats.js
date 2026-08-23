@@ -892,7 +892,6 @@ async function fetchBlockHeight() {
       fetchMempoolText("/blocks/tip/height", {
         validate: (value) => /^\d+$/.test(value),
       }),
-      fetchFiatPrice(),
       fetchMiningStats(),
       fetchRecommendedFees(),
       fetchNonZeroAddresses(),
@@ -924,6 +923,7 @@ function startBlockHeightRefresh() {
 window.loadCachedMarketMetrics = loadCachedMarketMetrics;
 window.saveCachedMarketMetrics = saveCachedMarketMetrics;
 window.updateBlockHeightTooltip = updateBlockHeightTooltip;
+window.updateValuationStats = updateValuationStats;
 window.fetchMarketMetrics = fetchMarketMetrics;
 window.startMarketMetricsRefresh = startMarketMetricsRefresh;
 window.fetchMiningStats = fetchMiningStats;

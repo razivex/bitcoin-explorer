@@ -2,6 +2,9 @@ function initApp() {
   loadCachedMarketMetrics();
   startBlockHeightRefresh();
   startMarketMetricsRefresh();
+  if (typeof bindPricePollingEvents === "function") {
+    bindPricePollingEvents();
+  }
   // Paint Loading… (or cached values) on Network / Valuation cards immediately.
   if (typeof updateBlockHeightTooltip === "function") {
     updateBlockHeightTooltip();
@@ -50,10 +53,6 @@ function bindAppEvents() {
   });
 
   const refreshDisplayedData = async () => {
-    if (getDisplayCurrency() === "BRL") {
-      await ensureBrlPriceCached();
-    }
-
     if (typeof updateBlockHeightTooltip === "function") {
       updateBlockHeightTooltip();
     }
@@ -101,7 +100,19 @@ function bindAppEvents() {
 
   if (typeof onCurrencyChange === "function") {
     onCurrencyChange(() => {
-      void refreshDisplayedData();
+      void (async () => {
+        if (
+          typeof isPriceVisible === "function" &&
+          isPriceVisible() &&
+          typeof fetchFiatPrice === "function"
+        ) {
+          await fetchFiatPrice();
+        }
+        await refreshDisplayedData();
+        if (typeof syncLivePricePolling === "function") {
+          syncLivePricePolling();
+        }
+      })();
     });
   }
 }

@@ -36,7 +36,7 @@ Paste any of these into the search box and hit Check:
 
 On-chain and Lightning channel data mainly come from mempool.space (with public mirrors).
 Lightning addresses use LNURL-pay on the recipient’s domain.
-Prices use mempool.space (USD) and CoinGecko (BRL).
+Live prices come from exchange tickers (Binance, then Coinbase), only while you are looking at Valuation or an address balance. USD and BRL both tick about once a second. If those feeds fail, the app falls back to mempool.space (USD) and CoinGecko (BRL).
 
 ## Author
 

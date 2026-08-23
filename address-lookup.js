@@ -47,10 +47,9 @@ async function loadAddressData(address) {
   const txCount = addressData.chain_stats.tx_count ?? 0;
   const mempoolTxCount = addressData.mempool_stats?.tx_count ?? 0;
 
-  const [chainTxs, fiatPrice] = await Promise.all([
-    fetchJson(`/${apiBasePath}/${encodedQueryKey}/txs/chain`).catch(() => []),
-    fetchFiatPrice(),
-  ]);
+  const chainTxs = await fetchJson(
+    `/${apiBasePath}/${encodedQueryKey}/txs/chain`,
+  ).catch(() => []);
 
   const chainHasSums = hasStatsSums(addressData.chain_stats);
   const mempoolHasSums = hasStatsSums(addressData.mempool_stats);
@@ -102,7 +101,6 @@ async function loadAddressData(address) {
     confirmedBtc,
     unconfirmedSats,
     unconfirmedBtc,
-    fiatPrice,
     addressType: getAddressType(addressData.address, {
       isPublicKey: isPublicKeyLookup,
       network,
@@ -184,7 +182,7 @@ function applyAddressData(data, { silent = false } = {}) {
         data.confirmedBtc,
         data.unconfirmedSats ?? 0,
         data.unconfirmedBtc ?? 0,
-        data.fiatPrice,
+        getFiatPrice(),
         data.addressData.mempool_stats,
       );
     } else {
@@ -192,7 +190,7 @@ function applyAddressData(data, { silent = false } = {}) {
         data.confirmedBtc,
         data.unconfirmedSats ?? 0,
         data.unconfirmedBtc ?? 0,
-        data.fiatPrice,
+        getFiatPrice(),
         data.addressData.mempool_stats,
       );
     }
@@ -235,6 +233,10 @@ function applyAddressData(data, { silent = false } = {}) {
   AppState.lastAppliedData = data;
   AppState.currentLookupInput = data.addressData.address;
   AppDom.resultEl.classList.add("show");
+
+  if (typeof syncLivePricePolling === "function") {
+    syncLivePricePolling();
+  }
 }
 
 async function refreshAddressSilently() {

@@ -24,7 +24,7 @@ Confirmed history can be exported to Excel (`.xlsx`). Addresses and pubkeys can 
 |---|---|
 | **Bitcoin logo** | Returns to the main search view (clears the search, hides results — same idea as opening the app fresh). |
 | **Network** | Opens a full page of live chain stats as cards (height, hashrate, high-priority fee rate, difficulty, blocks to adjustment/halving, supply, non-zero addresses). |
-| **Valuation** | Opens a full page of market metrics as cards (Bitcoin price, Mayer Multiple, MVRV, Fear & Greed). |
+| **Valuation** | Opens a full page of market metrics as cards (Bitcoin price ticking from live exchange quotes, Mayer Multiple, MVRV, Fear & Greed). |
 | **Sound toggle** | Mute or unmute mempool / confirmation alerts. |
 | **Settings (gear)** | Language, display currency, and About. |
 
@@ -65,7 +65,7 @@ Market metrics are cached in `localStorage` for an hour so reloads and rate limi
 The gear menu offers:
 
 - **Language** — English or Portuguese (`pt-BR`). Labels, errors, date formatting, and re-render of open results update immediately.
-- **Currency** — USD or BRL for balances and the Valuation price card. USD comes from mempool.space `GET /api/v1/prices`; BRL from [CoinGecko](https://api.coingecko.com). Prices are cached so BRL survives the 10 second refresh loop. If a price call fails, the last good value stays up.
+- **Currency** — USD or BRL for balances and the Valuation price card. Live quotes come from exchange tickers ([Binance](https://api.binance.com) `BTCUSDT` / `BTCBRL`, then [Coinbase](https://api.coinbase.com) spot), polled about once a second **only while the price is on screen** (Valuation page, or an address with a visible fiat balance). The tab being hidden, Network, home, transactions, and Lightning views do not hit the price APIs. If the live tickers fail, USD falls back to mempool.space `GET /api/v1/prices` and BRL to [CoinGecko](https://api.coingecko.com). The last good value stays up if a call fails.
 - **About** — short in-app summary from `about.js` (what you can look up, tips, data sources). Not a full README clone.
 
 ### Falling mempool blocks
@@ -240,7 +240,7 @@ Short IDs like `811984x2037x0` or full decimal IDs are accepted. Short IDs are e
 
 **Address / public key (Bitcoin or Liquid)**
 
-`pubkey-utils.js` and `liquid-utils.js` figure out the type and network. The app loads address or scripthash stats, the latest confirmed tx page, and prices, then computes balance, fiat, script type, exposed pubkey, and last activity before rendering and starting timers. See [Public keys vs addresses](#public-keys-vs-addresses) for the P2PK path.
+`pubkey-utils.js` and `liquid-utils.js` figure out the type and network. The app loads address or scripthash stats and the latest confirmed tx page, then computes balance, fiat (from the live price cache), script type, exposed pubkey, and last activity before rendering and starting timers. Live fiat polling starts only while that address result is on screen. See [Public keys vs addresses](#public-keys-vs-addresses) for the P2PK path.
 
 ### Balance calculation
 
@@ -305,7 +305,8 @@ Mute with the bell in the nav. Preference is stored in `localStorage`.
 | Timer | Interval | Purpose |
 |---|---|---|
 | Auto-refresh | 10 s | Re-fetch address or tx data quietly |
-| Block height and price | 10 s | Tip, difficulty/halving countdown, supply, hashrate, difficulty, price |
+| Block height | 10 s | Tip, difficulty/halving countdown, supply, hashrate, difficulty |
+| Live fiat price | 1 s | Exchange ticker for USD/BRL, only while Valuation or an address fiat line is visible (paused when the tab is hidden) |
 | Market metrics | 1 h | Mayer Multiple, MVRV, Fear & Greed |
 | Time since last tx | 1 s | Address lookup elapsed counter |
 | Time since confirmation | 1 s | Tx lookup elapsed counter |
@@ -445,13 +446,13 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | `index.html` | Layout, search, result panels, Network/Valuation views, settings, About/QR/invoice/export overlays |
 | `styles.css` | Dark theme, animations, stats cards, invoice/QR/About UI |
 | `app.js` | Startup and event wiring |
-| `api-client.js` | Mempool client, timeouts, provider fallbacks |
+| `api-client.js` | Mempool client, live price tickers, timeouts, provider fallbacks |
 | `dom.js` | DOM refs (`AppDom`) |
 | `state.js` | Constants and shared state |
 | `format.js` | Dates, BTC, fiat, numbers |
 | `btc.js` | Balance math, address types, supply, unconfirmed helpers |
 | `liquid-utils.js` | Liquid detection, types, amount labels |
-| `prices.js` | Fiat price fetch and cache (USD / BRL) |
+| `prices.js` | Visibility-aware live fiat polling (USD / BRL) |
 | `ui.js` | Errors, timers, text fitting |
 | `balance-sub.js` | Fiat / unconfirmed subtitle cycle |
 | `tx-sounds.js` | Sound triggers for address and tx watches |
@@ -482,12 +483,14 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | [ExcelJS](https://www.npmjs.com/package/exceljs) | jsDelivr | Excel export |
 | [@noble/secp256k1](https://www.npmjs.com/package/@noble/secp256k1) | jsDelivr (dynamic import) | Optional payee pubkey recovery from BOLT11 signature |
 | [@noble/hashes](https://www.npmjs.com/package/@noble/hashes) | jsDelivr (dynamic import) | SHA-256 for invoice signature recovery |
-| [mempool.space API](https://mempool.space/docs/api/rest) | mempool.space (+ mirrors) | On-chain data, Lightning channels, height, mining, USD |
+| [mempool.space API](https://mempool.space/docs/api/rest) | mempool.space (+ mirrors) | On-chain data, Lightning channels, height, mining, USD price fallback |
 | [mempool.space WebSocket](https://mempool.space/docs/api/websocket) | `wss://mempool.space/api/v1/ws` (+ mirrors) | Live mempool and watched address events |
 | [Blockstream Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md) | blockstream.info | Fallback chain endpoints; Liquid via `/liquid` |
 | LNURL-pay | `https://{domain}/.well-known/lnurlp/{user}` | Lightning addresses and invoices |
 | [blockchain.info](https://www.blockchain.com/explorer/api/blockchain_api) | blockchain.info | Hashrate / difficulty fallback; total transaction count fallback |
-| [CoinGecko API](https://www.coingecko.com/en/api) | api.coingecko.com | BRL, USD fallback, Mayer fallback |
+| [Binance API](https://developers.binance.com/docs/binance-spot-api-docs/rest-api) | api.binance.com, data-api.binance.vision | Live BTC-USD and BTC-BRL tickers |
+| [Coinbase API](https://docs.cdp.coinbase.com/exchange/reference/exchangerestapi_getproductticker) | api.coinbase.com | Live USD/BRL spot fallback |
+| [CoinGecko API](https://www.coingecko.com/en/api) | api.coingecko.com | Last-resort BRL/USD, Mayer fallback |
 | [CoinMetrics Community API](https://community-api.coinmetrics.io/) | community-api.coinmetrics.io | MVRV fallback |
 | [bitcoin-data.com API](https://bitcoin-data.com/) | bitcoin-data.com | Primary Mayer and MVRV |
 | [Alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | api.alternative.me | Fear & Greed |
@@ -509,7 +512,7 @@ WebSocket mirrors rotate the same way on disconnect or a 5 second connect timeou
 | Liquid address / tx / tip height | blockstream.info/liquid, liquid.network | none |
 | `/v1/lightning/channels/{id}` | Mempool only | none |
 | LNURL-pay discovery / invoice | Recipient domain | none (CORS-dependent) |
-| `/v1/prices` (USD) | Mempool chain | CoinGecko |
+| Live BTC price (USD / BRL) | Binance ticker, then Binance Vision | Coinbase spot; then mempool `/v1/prices` (USD) or CoinGecko (BRL) |
 | `/v1/mining/hashrate/3d` | Mempool chain | blockchain.info |
 | `/v1/transaction-times` | Mempool chain | Block audit for confirmed txs |
 | `/mempool/recent` | Mempool chain | none |

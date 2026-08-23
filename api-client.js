@@ -35,6 +35,49 @@ const BLOCKCHAIN_INFO_DIFFICULTY_URL =
   "https://blockchain.info/q/getdifficulty";
 const BLOCKCHAIN_INFO_HASHRATE_URL = "https://blockchain.info/q/hashrate";
 
+const LIVE_TICKER_SOURCES = {
+  USD: [
+    {
+      name: "Binance",
+      url: "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+      parse: (data) => Number(data?.price),
+    },
+    {
+      name: "Binance Vision",
+      url: "https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT",
+      parse: (data) => Number(data?.price),
+    },
+    {
+      name: "Coinbase",
+      url: "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+      parse: (data) => Number(data?.data?.amount),
+    },
+  ],
+  BRL: [
+    {
+      name: "Binance",
+      url: "https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL",
+      parse: (data) => Number(data?.price),
+    },
+    {
+      name: "Binance Vision",
+      url: "https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCBRL",
+      parse: (data) => Number(data?.price),
+    },
+    {
+      name: "Coinbase",
+      url: "https://api.coinbase.com/v2/prices/BTC-BRL/spot",
+      parse: (data) => Number(data?.data?.amount),
+    },
+  ],
+};
+
+const lastGoodTickerIndex = {
+  USD: -1,
+  BRL: -1,
+};
+const TICKER_TIMEOUT_MS = 2500;
+
 function isAbortError(err) {
   return err?.name === "AbortError";
 }
@@ -117,6 +160,91 @@ async function fetchMempoolOnlyJson(path, options = {}) {
     ...options,
     providers: MEMPOOL_API_PROVIDERS,
   });
+}
+
+async function fetchTickerFromSource(source) {
+  const data = await fetchFromProvider("", source.url, {
+    timeoutMs: TICKER_TIMEOUT_MS,
+    validate: (payload) => {
+      const value = Number(source.parse(payload));
+      return Number.isFinite(value) && value > 0;
+    },
+  });
+  return Number(source.parse(data));
+}
+
+async function raceTickerSources(code, sources) {
+  const errors = [];
+
+  return new Promise((resolve, reject) => {
+    let pending = sources.length;
+    let settled = false;
+
+    if (pending === 0) {
+      reject(new Error(`No live ticker sources for ${code}`));
+      return;
+    }
+
+    sources.forEach((source, index) => {
+      fetchTickerFromSource(source)
+        .then((value) => {
+          if (settled) return;
+          settled = true;
+          lastGoodTickerIndex[code] = index;
+          resolve(value);
+        })
+        .catch((err) => {
+          const wrapped = formatFetchError(
+            err,
+            `${source.name} ${code} ticker`,
+          );
+          errors.push(wrapped);
+          console.warn(
+            `[api-client] ${source.name} ${code} ticker failed:`,
+            wrapped.message,
+          );
+          pending -= 1;
+          if (!settled && pending === 0) {
+            reject(
+              errors[errors.length - 1] ||
+                new Error(`${code} ticker: all providers failed`),
+            );
+          }
+        });
+    });
+  });
+}
+
+async function fetchExchangeTickerPrice(currency = "USD") {
+  const code = String(currency || "USD").toUpperCase();
+  const sources = LIVE_TICKER_SOURCES[code];
+  if (!Array.isArray(sources) || sources.length === 0) {
+    throw new Error(`No live ticker sources for ${code}`);
+  }
+
+  const preferredIndex = lastGoodTickerIndex[code];
+  const preferred =
+    preferredIndex >= 0 && preferredIndex < sources.length
+      ? sources[preferredIndex]
+      : null;
+
+  if (preferred) {
+    try {
+      return await fetchTickerFromSource(preferred);
+    } catch (err) {
+      const wrapped = formatFetchError(
+        err,
+        `${preferred.name} ${code} ticker`,
+      );
+      console.warn(
+        `[api-client] ${preferred.name} ${code} ticker failed:`,
+        wrapped.message,
+      );
+      lastGoodTickerIndex[code] = -1;
+    }
+  }
+
+  return raceTickerSources(code, sources);
 }
 
 async function fetchMempoolPrices() {
@@ -266,6 +394,7 @@ window.fetchMempoolOnlyJson = fetchMempoolOnlyJson;
 window.fetchLiquidJson = fetchLiquidJson;
 window.fetchLiquidText = fetchLiquidText;
 window.fetchLiquidTipHeight = fetchLiquidTipHeight;
+window.fetchExchangeTickerPrice = fetchExchangeTickerPrice;
 window.fetchMempoolPrices = fetchMempoolPrices;
 window.fetchMempoolMiningStats = fetchMempoolMiningStats;
 window.fetchMempoolRecommendedFees = fetchMempoolRecommendedFees;
