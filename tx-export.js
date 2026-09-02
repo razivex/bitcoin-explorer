@@ -494,6 +494,14 @@ async function exportAddressTransactions() {
     return;
   }
 
+  if (
+    AppState.lastAppliedData.silentPayment ||
+    AppState.lastAppliedData.lookupMode === "silent"
+  ) {
+    showExportError(t("errorExportSilentPayment"));
+    return;
+  }
+
   if (typeof ExcelJS === "undefined") {
     showExportError(t("errorExportLibrary"));
     return;

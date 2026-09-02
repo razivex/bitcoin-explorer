@@ -27,6 +27,9 @@ function detectAndPlayTxConfirmationSound(data, { silent = false } = {}) {
 
   if (confirmed && !AppState.txConfirmationWatchState.confirmed) {
     playConfirmedSound();
+    if (typeof notifyTxConfirmed === "function") {
+      notifyTxConfirmed(data);
+    }
   }
 
   AppState.txConfirmationWatchState = {
@@ -58,8 +61,14 @@ function detectAndPlayTxSounds(data, { silent = false } = {}) {
 
   if (newConfirmed) {
     playConfirmedSound();
+    if (typeof notifyAddressTxConfirmed === "function") {
+      notifyAddressTxConfirmed(data);
+    }
   } else if (newUnconfirmed) {
     playBellSound();
+    if (typeof notifyAddressNewTx === "function") {
+      notifyAddressNewTx(data);
+    }
     if (!isMempoolSocketConnected()) {
       const newAddressTxCount =
         mempoolTxCount - AppState.txWatchState.mempoolTxCount;

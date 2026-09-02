@@ -91,36 +91,43 @@ function scheduleBalanceBtcFit() {
   });
 }
 
-function fitMetaAddressToWidth() {
-  const fullAddress = AppDom.metaAddressEl.dataset.fullAddress;
-  if (!fullAddress || !AppDom.resultEl.classList.contains("show")) return;
+function fitTruncatableMetaField(el) {
+  const fullAddress = el?.dataset?.fullAddress;
+  if (!fullAddress || !AppDom.resultEl?.classList.contains("show")) return;
+  if (el.closest("[hidden]")) return;
 
-  AppDom.metaAddressEl.textContent = fullAddress;
-
-  if (AppDom.metaAddressEl.clientWidth === 0) return;
-
-  if (AppDom.metaAddressEl.scrollWidth <= AppDom.metaAddressEl.clientWidth) {
-    return;
-  }
+  el.textContent = fullAddress;
+  if (el.clientWidth === 0) return;
+  if (el.scrollWidth <= el.clientWidth) return;
 
   for (let len = fullAddress.length - 1; len >= 12; len -= 1) {
-    AppDom.metaAddressEl.textContent = truncateMiddle(fullAddress, len);
-    if (AppDom.metaAddressEl.scrollWidth <= AppDom.metaAddressEl.clientWidth) {
-      return;
-    }
+    el.textContent = truncateMiddle(fullAddress, len);
+    if (el.scrollWidth <= el.clientWidth) return;
   }
 
-  AppDom.metaAddressEl.textContent = truncateMiddle(fullAddress, 12);
+  el.textContent = truncateMiddle(fullAddress, 12);
+}
+
+function fitMetaAddressToWidth() {
+  fitTruncatableMetaField(AppDom.metaAddressEl);
+  fitTruncatableMetaField(AppDom.metaScanKeyEl);
+  fitTruncatableMetaField(AppDom.metaSpendKeyEl);
+}
+
+function setMetaFieldDisplay(el, fullAddress) {
+  if (!el) return;
+  const value = fullAddress == null ? "" : String(fullAddress);
+  el.dataset.fullAddress = value;
+  el.title = value;
+  el.textContent = value;
+
+  requestAnimationFrame(() => {
+    fitTruncatableMetaField(el);
+  });
 }
 
 function setMetaAddressDisplay(fullAddress) {
-  AppDom.metaAddressEl.dataset.fullAddress = fullAddress;
-  AppDom.metaAddressEl.title = fullAddress;
-  AppDom.metaAddressEl.textContent = fullAddress;
-
-  requestAnimationFrame(() => {
-    fitMetaAddressToWidth();
-  });
+  setMetaFieldDisplay(AppDom.metaAddressEl, fullAddress);
 }
 
 function fitTxValueBtcToWidth() {
@@ -159,6 +166,7 @@ window.startTimeSinceTimer = startTimeSinceTimer;
 window.fitBalanceBtcToWidth = fitBalanceBtcToWidth;
 window.scheduleBalanceBtcFit = scheduleBalanceBtcFit;
 window.fitMetaAddressToWidth = fitMetaAddressToWidth;
+window.setMetaFieldDisplay = setMetaFieldDisplay;
 window.setMetaAddressDisplay = setMetaAddressDisplay;
 window.fitTxValueBtcToWidth = fitTxValueBtcToWidth;
 window.scheduleTxValueBtcFit = scheduleTxValueBtcFit;

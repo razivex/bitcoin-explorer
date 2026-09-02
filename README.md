@@ -6,7 +6,7 @@ I built this for everyday stuff: verify a donation address, check a balance, exp
 
 ## What you can do
 
-Look up Bitcoin or Liquid addresses, public keys, and transactions from one search box. You get confirmed balance with live fiat (USD or BRL), script type, tx count, last activity, and whether the pubkey is exposed on-chain.
+Look up Bitcoin or Liquid addresses, silent payment addresses, public keys, and transactions from one search box. You get confirmed balance with live fiat (USD or BRL), script type, tx count, last activity, and whether the pubkey is exposed on-chain. Silent payment addresses (BIP-352, `sp1…`) are decoded locally: you see the address, network, type, scan key, and spend key. The balance is shown as Confidential because an explorer cannot scan those outputs, and incoming unconfirmed activity is not watched.
 
 Pending funds show up as a net unconfirmed amount with arrows for incoming and outgoing mempool activity.
 
@@ -26,9 +26,9 @@ Confirmed history can be exported to Excel (`.xlsx`). Addresses and pubkeys can 
 | **Network** | Opens a full page of live chain stats as cards (height, hashrate, high-priority fee rate, difficulty, blocks to adjustment/halving, supply, non-zero addresses). |
 | **Valuation** | Opens a full page of market metrics as cards (Bitcoin price ticking from live exchange quotes, Mayer Multiple, MVRV, Fear & Greed). |
 | **Sound toggle** | Mute or unmute mempool / confirmation alerts. |
-| **Settings (gear)** | Language, display currency, and About. |
+| **Settings (gear)** | Language, display currency, browser notifications, and About. |
 
-Language (English / Brazilian Portuguese) and currency (USD / BRL) are independent and both stick in `localStorage`. Sound mute preference is stored too.
+Language (English / Brazilian Portuguese) and currency (USD / BRL) are independent and both stick in `localStorage`. Sound mute and notification preferences are stored too.
 
 Footer social links point to X and GitHub.
 
@@ -66,6 +66,7 @@ The gear menu offers:
 
 - **Language** — English or Portuguese (`pt-BR`). Labels, errors, date formatting, and re-render of open results update immediately.
 - **Currency** — USD or BRL for balances and the Valuation price card. Live quotes come from exchange tickers ([Binance](https://api.binance.com) `BTCUSDT` / `BTCBRL`, then [Coinbase](https://api.coinbase.com) spot), polled about once a second **only while the price is on screen** (Valuation page, or an address with a visible fiat balance). The tab being hidden, Network, home, transactions, and Lightning views do not hit the price APIs. If the live tickers fail, USD falls back to mempool.space `GET /api/v1/prices` and BRL to [CoinGecko](https://api.coingecko.com). The last good value stays up if a call fails.
+- **Notifications** — optional browser notifications, each toggleable on its own: new block mined; watched transaction confirmed (while a tx is open); new transaction on the open address; confirmation of a transaction on the open address. The first enable asks for browser permission. Notifications need a secure context (https or localhost) and may not appear if you open `index.html` as a local file. Silent payment lookups never fire address notifications, because those outputs cannot be scanned here.
 - **About** — short in-app summary from `about.js` (what you can look up, tips, data sources). Not a full README clone.
 
 ### Falling mempool blocks
@@ -78,13 +79,13 @@ Blocks are small squares (about 8 to 18 px) with a ₿ in the middle. At most 36
 
 ### Input routing
 
-The same search field accepts Bitcoin/Liquid addresses, public keys, txids, Lightning channel IDs, Lightning addresses, and BOLT11 invoices. Classification order:
+The same search field accepts Bitcoin/Liquid addresses, silent payment addresses, public keys, txids, Lightning channel IDs, Lightning addresses, and BOLT11 invoices. Classification order:
 
 1. 64-character hex → transaction ID  
 2. BOLT11 (`lnbc…`, `lntb…`, optional `lightning:` prefix) → Lightning invoice  
 3. `user@domain` → Lightning address  
 4. Short or full channel IDs → Lightning channel  
-5. Everything else → address / public key path  
+5. Everything else → address / public key / silent payment path  
 
 ### Supported inputs
 
@@ -95,6 +96,7 @@ The same search field accepts Bitcoin/Liquid addresses, public keys, txids, Ligh
 | Native SegWit P2WPKH | `bc1q`, 42 chars | `bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq` |
 | Native SegWit P2WSH | `bc1q`, 62 chars | longer `bc1q...` bech32 |
 | Taproot P2TR | starts with `bc1p` | `bc1p...` |
+| Silent payment (BIP-352) | `sp1…` (mainnet) or `tsp1…` (testnet) | `sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv` |
 | Liquid addresses | `ex1...`, `lq1...`, confidential, etc. | Liquid Network addresses |
 | Compressed public key | 66 hex chars, `02` or `03` | `02...` / `03...` |
 | Uncompressed public key | 130 hex chars, `04` | `04...` |
@@ -213,8 +215,9 @@ Everything is plain HTML, CSS, and JavaScript in the browser. No server code, no
     │ dom.js · state.js · format.js · btc.js · prices.js · ui.js      │
     │ balance-sub.js · tx-sounds.js · qr.js · action-menu.js         │
     │ lightning-utils.js · bolt11-decode.js · lightning-invoice.js   │
-    │ liquid-utils.js · tx-export.js · pubkey-utils.js · tx-utils.js │
-    │ i18n.js · about.js · sounds.js                                  │
+    │ liquid-utils.js · silent-payments.js · tx-export.js            │
+    │ pubkey-utils.js · tx-utils.js · i18n.js · about.js             │
+    │ sounds.js · notifications.js                                    │
     └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -241,6 +244,10 @@ Short IDs like `811984x2037x0` or full decimal IDs are accepted. Short IDs are e
 **Address / public key (Bitcoin or Liquid)**
 
 `pubkey-utils.js` and `liquid-utils.js` figure out the type and network. The app loads address or scripthash stats and the latest confirmed tx page, then computes balance, fiat (from the live price cache), script type, exposed pubkey, and last activity before rendering and starting timers. Live fiat polling starts only while that address result is on screen. See [Public keys vs addresses](#public-keys-vs-addresses) for the P2PK path.
+
+**Silent payment (BIP-352)**
+
+`silent-payments.js` matches Bech32m `sp1…` / `tsp1…` and decodes the scan and spend public keys in the browser. No chain API is called: those outputs are not identifiable from the address alone, so the balance is Confidential, mempool watching and auto-refresh are off, and Excel export is disabled. QR of the silent payment address still works.
 
 ### Balance calculation
 
@@ -291,6 +298,8 @@ After the first successful lookup (and after a user click unlocks audio), auto-r
 | Watched tx confirms (tx lookup) | Mechanical "done" click |
 
 Mute with the bell in the nav. Preference is stored in `localStorage`.
+
+Browser notifications (Settings → Notifications) are separate from sounds. Each type can be enabled on its own and uses the Notification API. Address mempool / confirmation notifications only fire while that address result is open; transaction-confirmed notifications only fire while that tx is open. New-block notifications are global.
 
 ### Exposed public key
 
@@ -429,11 +438,12 @@ See [Transaction lookup](#transaction-lookup).
 |---|---|
 | Address / Public Key | Lookup value (shortened to one line; hover for full) |
 | Network | Bitcoin or Liquid |
-| Address Type | P2PK, P2PKH, P2SH, P2WPKH, P2WSH, P2TR, or Liquid types |
-| Exposed PubKey | Yes / No (Confidential on Liquid confidential addresses) |
-| Transactions | Confirmed tx count |
-| Last Transaction Date | Most recent confirmed tx time |
-| Time Since Last Transaction | Live counter |
+| Address Type | P2PK, P2PKH, P2SH, P2WPKH, P2WSH, P2TR, Silent Payment, or Liquid types |
+| Exposed PubKey | Yes / No (Confidential on Liquid confidential addresses; hidden for silent payments) |
+| Scan Key / Spend Key | Silent payment only: compressed public keys decoded from the address |
+| Transactions | Confirmed tx count (hidden for silent payments) |
+| Last Transaction Date | Most recent confirmed tx time (hidden for silent payments) |
+| Time Since Last Transaction | Live counter (hidden for silent payments) |
 
 ### Lightning
 
@@ -452,6 +462,8 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | `format.js` | Dates, BTC, fiat, numbers |
 | `btc.js` | Balance math, address types, supply, unconfirmed helpers |
 | `liquid-utils.js` | Liquid detection, types, amount labels |
+| `silent-payments.js` | BIP-352 silent payment detection and Bech32m decode |
+| `notifications.js` | Browser notification prefs and alerts |
 | `prices.js` | Visibility-aware live fiat polling (USD / BRL) |
 | `ui.js` | Errors, timers, text fitting |
 | `balance-sub.js` | Fiat / unconfirmed subtitle cycle |
@@ -469,7 +481,7 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | `chain-stats.js` | Network/Valuation cards, odometer ticks, market metrics |
 | `pubkey-utils.js` | Pubkey detection, P2PK script, scripthash |
 | `tx-utils.js` | Txid validation and embedded data detection |
-| `i18n.js` | EN / pt-BR strings, settings menu, language and currency prefs |
+| `i18n.js` | EN / pt-BR strings, settings menu, language, currency, and notification prefs |
 | `about.js` | About modal copy |
 | `sounds.js` | Web Audio alerts and mute |
 | `blocks-fx.js` | Mempool WS, falling blocks, fee colors |
@@ -497,6 +509,7 @@ See [Lightning channel lookup](#lightning-channel-lookup), [Lightning address lo
 | [Blockchair](https://blockchair.com/api) | api.blockchair.com | Non-zero address count; total transaction count |
 | Web Crypto API | Browser | SHA-256 for scripthash |
 | Web Audio API | Browser | Alert sounds |
+| Notifications API | Browser | Optional block / transaction alerts |
 
 ### API fallbacks (`api-client.js`)
 

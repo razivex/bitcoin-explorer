@@ -113,9 +113,13 @@ const translations = {
     publicKey: "Public Key:",
     network: "Network:",
     networkBitcoin: "Bitcoin",
+    networkBitcoinTestnet: "Bitcoin Testnet",
     networkLiquid: "Liquid",
     addressType: "Address Type:",
+    addressTypeSilentPayment: "Silent Payment",
     exposedPubKey: "Exposed PubKey:",
+    scanKey: "Scan Key:",
+    spendKey: "Spend Key:",
     transactions: "Transactions:",
     lastTxDate: "Last Transaction Date:",
     timeSinceLast: "Time Since Last Transaction:",
@@ -159,6 +163,21 @@ const translations = {
     settings: "Settings",
     language: "Language",
     currency: "Currency",
+    notifications: "Notifications",
+    notificationsOn: "On",
+    notificationsOff: "Off",
+    notificationsUnsupported: "Unavailable",
+    notifyPrefNewBlock: "New block mined",
+    notifyPrefTxConfirmed: "Transaction confirmed",
+    notifyPrefAddressNewTx: "New address transaction",
+    notifyPrefAddressTxConfirmed: "Address transaction confirmed",
+    notifyNewBlock: "New block mined",
+    notifyTxConfirmed: "Transaction confirmed",
+    notifyAddressNewTx: "New transaction",
+    notifyAddressTxConfirmed: "Transaction confirmed",
+    notifyBodyBlock: "Block height: {height}",
+    notifyBodyTx: "Transaction {txid}",
+    notifyBodyAddress: "Address {address}",
     about: "About",
     aboutClose: "Close",
     aboutLoading: "Loading…",
@@ -168,9 +187,13 @@ const translations = {
     soundsOn: "Sounds on",
     soundsOff: "Sounds off",
     errorEmpty:
-      "Please enter a Bitcoin or Liquid address, public key, transaction ID, Lightning channel, Lightning address, or Lightning invoice.",
+      "Please enter a Bitcoin or Liquid address, silent payment address, public key, transaction ID, Lightning channel, Lightning address, or Lightning invoice.",
     errorInvalidPubkey:
       "Invalid public key. Paste a compressed (02/03...) or uncompressed (04...) key in hex.",
+    errorInvalidSilentPayment:
+      "Invalid silent payment address. Check the address and try again.",
+    errorIncompleteSilentPayment:
+      "This silent payment address looks incomplete. A BIP-352 address is about 116 characters (sp1…). Paste the full address and try again.",
     errorFetch:
       "Could not fetch balance. Check the address or public key and try again.",
     errorLnChannelFetch:
@@ -195,6 +218,8 @@ const translations = {
     errorExportLibrary:
       "Excel export library failed to load. Refresh the page and try again.",
     errorExportNoAddress: "Look up an address or public key before exporting.",
+    errorExportSilentPayment:
+      "Silent payment addresses cannot be scanned by an explorer, so transactions cannot be exported.",
     errorExportFetch:
       "Could not export transactions. Check the connection and try again.",
     errorExportEmpty: "No transactions found for this address.",
@@ -328,9 +353,13 @@ const translations = {
     publicKey: "Chave Pública:",
     network: "Rede:",
     networkBitcoin: "Bitcoin",
+    networkBitcoinTestnet: "Bitcoin Testnet",
     networkLiquid: "Liquid",
     addressType: "Tipo de Endereço:",
+    addressTypeSilentPayment: "Silent Payment",
     exposedPubKey: "Chave Pública Exposta:",
+    scanKey: "Chave de Scan:",
+    spendKey: "Chave de Gasto:",
     transactions: "Transações:",
     lastTxDate: "Data da Última Transação:",
     timeSinceLast: "Tempo Desde a Última Transação:",
@@ -374,6 +403,21 @@ const translations = {
     settings: "Configurações",
     language: "Idioma",
     currency: "Moeda",
+    notifications: "Notificações",
+    notificationsOn: "Ligadas",
+    notificationsOff: "Desligadas",
+    notificationsUnsupported: "Indisponível",
+    notifyPrefNewBlock: "Novo bloco minerado",
+    notifyPrefTxConfirmed: "Transação confirmada",
+    notifyPrefAddressNewTx: "Nova transação no endereço",
+    notifyPrefAddressTxConfirmed: "Transação do endereço confirmada",
+    notifyNewBlock: "Novo bloco minerado",
+    notifyTxConfirmed: "Transação confirmada",
+    notifyAddressNewTx: "Nova transação",
+    notifyAddressTxConfirmed: "Transação confirmada",
+    notifyBodyBlock: "Altura do bloco: {height}",
+    notifyBodyTx: "Transação {txid}",
+    notifyBodyAddress: "Endereço {address}",
     about: "Sobre",
     aboutClose: "Fechar",
     aboutLoading: "Carregando…",
@@ -384,9 +428,13 @@ const translations = {
     soundsOn: "Sons ligados",
     soundsOff: "Sons desligados",
     errorEmpty:
-      "Por favor, insira um endereço Bitcoin ou Liquid, chave pública, ID de transação, canal Lightning, endereço Lightning ou fatura Lightning.",
+      "Por favor, insira um endereço Bitcoin ou Liquid, endereço silent payment, chave pública, ID de transação, canal Lightning, endereço Lightning ou fatura Lightning.",
     errorInvalidPubkey:
       "Chave pública inválida. Cole uma chave comprimida (02/03...) ou não comprimida (04...) em hexadecimal.",
+    errorInvalidSilentPayment:
+      "Endereço silent payment inválido. Verifique o endereço e tente novamente.",
+    errorIncompleteSilentPayment:
+      "Este endereço silent payment parece incompleto. Um endereço BIP-352 tem cerca de 116 caracteres (sp1…). Cole o endereço completo e tente novamente.",
     errorFetch:
       "Não foi possível buscar o saldo. Verifique o endereço ou a chave pública e tente novamente.",
     errorLnChannelFetch:
@@ -413,6 +461,8 @@ const translations = {
       "A biblioteca de exportação para Excel falhou ao carregar. Atualize a página e tente novamente.",
     errorExportNoAddress:
       "Busque um endereço ou chave pública antes de exportar.",
+    errorExportSilentPayment:
+      "Exploradores não conseguem varrer endereços silent payment, então as transações não podem ser exportadas.",
     errorExportFetch:
       "Não foi possível exportar as transações. Verifique a conexão e tente novamente.",
     errorExportEmpty: "Nenhuma transação encontrada para este endereço.",
@@ -564,6 +614,10 @@ function updateSettingsUi() {
     option.classList.toggle("is-selected", isSelected);
     option.setAttribute("aria-selected", String(isSelected));
   });
+
+  if (typeof updateNotificationsUi === "function") {
+    updateNotificationsUi();
+  }
 }
 
 function closeLangMenu() {
@@ -582,6 +636,15 @@ function closeCurrencyMenu() {
   }
 }
 
+function closeNotificationsMenu() {
+  const notifyMenu = document.getElementById("notifyMenu");
+  const settingsNotifyBtn = document.getElementById("settingsNotifyBtn");
+  if (notifyMenu) notifyMenu.hidden = true;
+  if (settingsNotifyBtn) {
+    settingsNotifyBtn.setAttribute("aria-expanded", "false");
+  }
+}
+
 function closeSettingsMenu() {
   const settingsMenu = document.getElementById("settingsMenu");
   const settingsToggleBtn = document.getElementById("settingsToggleBtn");
@@ -591,6 +654,7 @@ function closeSettingsMenu() {
   }
   closeLangMenu();
   closeCurrencyMenu();
+  closeNotificationsMenu();
 }
 
 function openSettingsMenu() {
@@ -600,6 +664,7 @@ function openSettingsMenu() {
 
   closeLangMenu();
   closeCurrencyMenu();
+  closeNotificationsMenu();
   settingsMenu.hidden = false;
   settingsToggleBtn.setAttribute("aria-expanded", "true");
 }
@@ -621,6 +686,7 @@ function openLangMenu() {
   if (!langMenu || !settingsLangBtn) return;
 
   closeCurrencyMenu();
+  closeNotificationsMenu();
   langMenu.hidden = false;
   settingsLangBtn.setAttribute("aria-expanded", "true");
 }
@@ -642,6 +708,7 @@ function openCurrencyMenu() {
   if (!currencyMenu || !settingsCurrencyBtn) return;
 
   closeLangMenu();
+  closeNotificationsMenu();
   currencyMenu.hidden = false;
   settingsCurrencyBtn.setAttribute("aria-expanded", "true");
 }
@@ -654,6 +721,28 @@ function toggleCurrencyMenu() {
     openCurrencyMenu();
   } else {
     closeCurrencyMenu();
+  }
+}
+
+function openNotificationsMenu() {
+  const notifyMenu = document.getElementById("notifyMenu");
+  const settingsNotifyBtn = document.getElementById("settingsNotifyBtn");
+  if (!notifyMenu || !settingsNotifyBtn) return;
+
+  closeLangMenu();
+  closeCurrencyMenu();
+  notifyMenu.hidden = false;
+  settingsNotifyBtn.setAttribute("aria-expanded", "true");
+}
+
+function toggleNotificationsMenu() {
+  const notifyMenu = document.getElementById("notifyMenu");
+  if (!notifyMenu) return;
+
+  if (notifyMenu.hidden) {
+    openNotificationsMenu();
+  } else {
+    closeNotificationsMenu();
   }
 }
 
@@ -746,9 +835,11 @@ function initSettings() {
   const settingsMenu = document.getElementById("settingsMenu");
   const settingsLangBtn = document.getElementById("settingsLangBtn");
   const settingsCurrencyBtn = document.getElementById("settingsCurrencyBtn");
+  const settingsNotifyBtn = document.getElementById("settingsNotifyBtn");
   const settingsAboutBtn = document.getElementById("settingsAboutBtn");
   const langMenu = document.getElementById("langMenu");
   const currencyMenu = document.getElementById("currencyMenu");
+  const notifyMenu = document.getElementById("notifyMenu");
   const aboutOverlay = document.getElementById("aboutOverlay");
   const aboutModal = document.getElementById("aboutModal");
   const aboutCloseBtn = document.getElementById("aboutCloseBtn");
@@ -768,6 +859,27 @@ function initSettings() {
   settingsCurrencyBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleCurrencyMenu();
+  });
+
+  settingsNotifyBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleNotificationsMenu();
+  });
+
+  notifyMenu?.querySelectorAll(".notifications-menu__option").forEach((option) => {
+    option.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const type = option.dataset.notify;
+      if (!type || typeof setNotificationEnabled !== "function") return;
+
+      const next = option.getAttribute("aria-checked") !== "true";
+      void (async () => {
+        await setNotificationEnabled(type, next);
+        if (typeof updateNotificationsUi === "function") {
+          updateNotificationsUi();
+        }
+      })();
+    });
   });
 
   settingsAboutBtn?.addEventListener("click", (event) => {
@@ -837,3 +949,5 @@ window.onLanguageChange = onLanguageChange;
 window.onCurrencyChange = onCurrencyChange;
 window.showAboutModal = showAboutModal;
 window.hideAboutModal = hideAboutModal;
+window.closeNotificationsMenu = closeNotificationsMenu;
+window.toggleNotificationsMenu = toggleNotificationsMenu;

@@ -129,6 +129,62 @@
               </li>
             </ul>
           </div>
+          <div class="settings-menu__section">
+            <button
+              id="settingsNotifyBtn"
+              class="settings-menu__item"
+              type="button"
+              role="menuitem"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="notifyMenu"
+            >
+              <span class="settings-menu__label" data-i18n="notifications">Notifications</span>
+              <span id="settingsNotifyValue" class="settings-menu__value">Off</span>
+            </button>
+            <div id="notifyMenu" class="notifications-menu settings-submenu" role="menu" hidden>
+              <button
+                class="notifications-menu__option"
+                type="button"
+                data-notify="newBlock"
+                role="menuitemcheckbox"
+                aria-checked="false"
+              >
+                <span class="notifications-menu__label" data-i18n="notifyPrefNewBlock">New block mined</span>
+                <span class="notifications-menu__check" aria-hidden="true"></span>
+              </button>
+              <button
+                class="notifications-menu__option"
+                type="button"
+                data-notify="txConfirmed"
+                role="menuitemcheckbox"
+                aria-checked="false"
+              >
+                <span class="notifications-menu__label" data-i18n="notifyPrefTxConfirmed">Transaction confirmed</span>
+                <span class="notifications-menu__check" aria-hidden="true"></span>
+              </button>
+              <button
+                class="notifications-menu__option"
+                type="button"
+                data-notify="addressNewTx"
+                role="menuitemcheckbox"
+                aria-checked="false"
+              >
+                <span class="notifications-menu__label" data-i18n="notifyPrefAddressNewTx">New address transaction</span>
+                <span class="notifications-menu__check" aria-hidden="true"></span>
+              </button>
+              <button
+                class="notifications-menu__option"
+                type="button"
+                data-notify="addressTxConfirmed"
+                role="menuitemcheckbox"
+                aria-checked="false"
+              >
+                <span class="notifications-menu__label" data-i18n="notifyPrefAddressTxConfirmed">Address transaction confirmed</span>
+                <span class="notifications-menu__check" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
           <button
             id="settingsAboutBtn"
             class="settings-menu__item"
@@ -241,7 +297,7 @@
               <span class="action-menu__label" data-i18n="qrShow">Show address QR code</span>
             </button>
           </li>
-          <li role="none">
+          <li role="none" id="actionExportItem">
             <button
               id="actionExportBtn"
               class="action-menu__option"
@@ -274,19 +330,27 @@
           <strong data-i18n="addressType">Address Type:</strong>
           <span id="metaAddressType"></span>
         </div>
-        <div class="meta__row">
+        <div id="metaExposedPubKeyRow" class="meta__row">
           <strong data-i18n="exposedPubKey">Exposed PubKey:</strong>
           <span id="metaExposedPubKey"></span>
         </div>
-        <div class="meta__row">
+        <div id="metaScanKeyRow" class="meta__address-row" hidden>
+          <strong data-i18n="scanKey">Scan Key:</strong>
+          <span id="metaScanKey" class="meta__address"></span>
+        </div>
+        <div id="metaSpendKeyRow" class="meta__address-row" hidden>
+          <strong data-i18n="spendKey">Spend Key:</strong>
+          <span id="metaSpendKey" class="meta__address"></span>
+        </div>
+        <div id="metaTransactionsRow" class="meta__row">
           <strong data-i18n="transactions">Transactions:</strong>
           <span id="metaTransactions"></span>
         </div>
-        <div class="meta__row">
+        <div id="metaLastTxDateRow" class="meta__row">
           <strong data-i18n="lastTxDate">Last Transaction Date:</strong>
           <span id="metaLastTxDate">N/A</span>
         </div>
-        <div class="meta__row">
+        <div id="metaTimeSinceLastRow" class="meta__row">
           <strong data-i18n="timeSinceLast">Time Since Last Transaction:</strong>
           <span id="timeSinceLast">N/A</span>
         </div>
@@ -677,10 +741,12 @@
   <script src="pubkey-utils.js"></script>
   <script src="tx-utils.js"></script>
   <script src="liquid-utils.js"></script>
+  <script src="silent-payments.js"></script>
   <script src="lightning-utils.js"></script>
   <script src="bolt11-decode.js"></script>
   <script src="about.js"></script>
   <script src="i18n.js"></script>
+  <script src="notifications.js"></script>
   <script src="dom.js"></script>
   <script src="state.js"></script>
   <script src="format.js"></script>

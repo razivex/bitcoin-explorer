@@ -23,6 +23,9 @@ function resetLookupUiState() {
   AppState.currentLnAddress = null;
   clearWatchedLookup();
   resetTxWatchState();
+  if (typeof setSilentPaymentMetaVisibility === "function") {
+    setSilentPaymentMetaVisibility(false);
+  }
 
   if (typeof syncLivePricePolling === "function") {
     syncLivePricePolling();
@@ -79,19 +82,27 @@ async function lookupAddress() {
     applyAddressData(data, { silent: false });
     AppDom.txResultEl.classList.remove("show");
     hideLightningResults();
-    // Address mempool watch uses Bitcoin WebSocket providers only.
-    if (data.network !== "liquid") {
-      setWatchedLookup(data.watchTarget);
-    } else {
+    const isSilent = Boolean(data.silentPayment || data.lookupMode === "silent");
+    // Silent payments are not visible on-chain to an explorer, so do not
+    // watch mempool activity or poll for unconfirmed incoming transactions.
+    if (isSilent || data.network === "liquid" || !data.watchTarget) {
       clearWatchedLookup();
+    } else {
+      setWatchedLookup(data.watchTarget);
     }
-    startAutoRefresh();
+    if (!isSilent) {
+      startAutoRefresh();
+    }
   } catch (err) {
     if (generation === AppState.lookupGeneration) {
       const message =
-        err?.message === "Invalid public key hex"
-          ? t("errorInvalidPubkey")
-          : t("errorFetch");
+        err?.message === "Incomplete silent payment address"
+          ? t("errorIncompleteSilentPayment")
+          : err?.message === "Invalid silent payment address"
+            ? t("errorInvalidSilentPayment")
+            : err?.message === "Invalid public key hex"
+              ? t("errorInvalidPubkey")
+              : t("errorFetch");
       showError(message);
     }
     console.error(err);

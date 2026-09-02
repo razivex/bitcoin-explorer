@@ -53,6 +53,13 @@ function getAddressType(
     return getLiquidAddressType(normalized);
   }
 
+  if (
+    typeof looksLikeSilentPaymentAddress === "function" &&
+    looksLikeSilentPaymentAddress(normalized)
+  ) {
+    return t("addressTypeSilentPayment");
+  }
+
   if (isPublicKey || isHexPublicKey(normalized)) {
     return "P2PK";
   }

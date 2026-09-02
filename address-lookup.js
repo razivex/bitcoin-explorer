@@ -1,6 +1,72 @@
 function resolveAddressNetwork(address) {
+  if (typeof looksLikeSilentPaymentAddress === "function" &&
+      looksLikeSilentPaymentAddress(address)) {
+    const decoded =
+      typeof decodeSilentPaymentAddress === "function"
+        ? decodeSilentPaymentAddress(address)
+        : null;
+    if (decoded?.network) return decoded.network;
+  }
   if (isLiquidAddress(address)) return "liquid";
   return "bitcoin";
+}
+
+function formatLookupNetwork(network) {
+  if (network === "liquid") return t("networkLiquid");
+  if (network === "bitcoin-testnet") return t("networkBitcoinTestnet");
+  return t("networkBitcoin");
+}
+
+function buildSilentPaymentLookupData(decoded) {
+  return {
+    addressData: {
+      address: decoded.address,
+      chain_stats: { tx_count: 0 },
+      mempool_stats: { tx_count: 0 },
+    },
+    network: decoded.network,
+    lookupMode: "silent",
+    watchTarget: null,
+    balanceConfidential: true,
+    unconfirmedConfidential: false,
+    confirmedBtc: null,
+    unconfirmedSats: 0,
+    unconfirmedBtc: 0,
+    addressType: t("addressTypeSilentPayment"),
+    exposedPubKey: null,
+    txCount: 0,
+    mempoolTxCount: 0,
+    lastConfirmedTxId: null,
+    lastTxDate: t("na"),
+    lastTxDateObj: null,
+    silentPayment: true,
+    scanKey: decoded.scanKey,
+    spendKey: decoded.spendKey,
+  };
+}
+
+function setSilentPaymentMetaVisibility(isSilent) {
+  if (AppDom.metaExposedPubKeyRowEl) {
+    AppDom.metaExposedPubKeyRowEl.hidden = isSilent;
+  }
+  if (AppDom.metaScanKeyRowEl) {
+    AppDom.metaScanKeyRowEl.hidden = !isSilent;
+  }
+  if (AppDom.metaSpendKeyRowEl) {
+    AppDom.metaSpendKeyRowEl.hidden = !isSilent;
+  }
+  if (AppDom.metaTransactionsRowEl) {
+    AppDom.metaTransactionsRowEl.hidden = isSilent;
+  }
+  if (AppDom.metaLastTxDateRowEl) {
+    AppDom.metaLastTxDateRowEl.hidden = isSilent;
+  }
+  if (AppDom.metaTimeSinceLastRowEl) {
+    AppDom.metaTimeSinceLastRowEl.hidden = isSilent;
+  }
+  if (AppDom.actionExportItem) {
+    AppDom.actionExportItem.hidden = isSilent;
+  }
 }
 
 function getChainFetchJson(network) {
@@ -8,6 +74,26 @@ function getChainFetchJson(network) {
 }
 
 async function loadAddressData(address) {
+  if (
+    typeof looksLikeSilentPaymentAddress === "function" &&
+    looksLikeSilentPaymentAddress(address)
+  ) {
+    const decoded =
+      typeof decodeSilentPaymentAddress === "function"
+        ? decodeSilentPaymentAddress(address)
+        : null;
+    if (!decoded) {
+      if (
+        typeof isIncompleteSilentPaymentAddress === "function" &&
+        isIncompleteSilentPaymentAddress(address)
+      ) {
+        throw new Error("Incomplete silent payment address");
+      }
+      throw new Error("Invalid silent payment address");
+    }
+    return buildSilentPaymentLookupData(decoded);
+  }
+
   const network = resolveAddressNetwork(address);
   const fetchJson = getChainFetchJson(network);
 
@@ -196,25 +282,41 @@ function applyAddressData(data, { silent = false } = {}) {
     }
   }
 
+  const isSilent = Boolean(data.silentPayment || data.lookupMode === "silent");
+  setSilentPaymentMetaVisibility(isSilent);
+
   AppDom.metaAddressLabelEl.textContent =
     data.lookupMode === "pubkey" ? t("publicKey") : t("address");
   setMetaAddressDisplay(data.addressData.address);
   if (AppDom.metaNetworkEl) {
-    AppDom.metaNetworkEl.textContent =
-      data.network === "liquid" ? t("networkLiquid") : t("networkBitcoin");
+    AppDom.metaNetworkEl.textContent = formatLookupNetwork(data.network);
   }
-  AppDom.metaAddressTypeEl.textContent = getAddressType(data.addressData.address, {
-    isPublicKey: data.lookupMode === "pubkey",
-    network: data.network,
-  });
-  AppDom.metaExposedPubKeyEl.textContent =
-    data.exposedPubKey === null
-      ? t("confidential")
-      : formatExposedPubKey(data.exposedPubKey);
-  AppDom.metaTransactionsEl.textContent = data.txCount;
-  AppDom.metaLastTxDateEl.textContent = data.lastTxDateObj
-    ? formatDateTime(data.lastTxDateObj)
-    : t("na");
+  AppDom.metaAddressTypeEl.textContent = isSilent
+    ? t("addressTypeSilentPayment")
+    : getAddressType(data.addressData.address, {
+        isPublicKey: data.lookupMode === "pubkey",
+        network: data.network,
+      });
+  if (isSilent) {
+    if (typeof setMetaFieldDisplay === "function") {
+      setMetaFieldDisplay(AppDom.metaScanKeyEl, data.scanKey || "");
+      setMetaFieldDisplay(AppDom.metaSpendKeyEl, data.spendKey || "");
+    } else {
+      if (AppDom.metaScanKeyEl) AppDom.metaScanKeyEl.textContent = data.scanKey || "";
+      if (AppDom.metaSpendKeyEl) {
+        AppDom.metaSpendKeyEl.textContent = data.spendKey || "";
+      }
+    }
+  } else {
+    AppDom.metaExposedPubKeyEl.textContent =
+      data.exposedPubKey === null
+        ? t("confidential")
+        : formatExposedPubKey(data.exposedPubKey);
+    AppDom.metaTransactionsEl.textContent = data.txCount;
+    AppDom.metaLastTxDateEl.textContent = data.lastTxDateObj
+      ? formatDateTime(data.lastTxDateObj)
+      : t("na");
+  }
 
   const nextLastTimestamp = data.lastTxDateObj?.getTime() ?? null;
   if (data.lastTxDateObj) {
@@ -228,7 +330,9 @@ function applyAddressData(data, { silent = false } = {}) {
     AppDom.timeSinceLastEl.textContent = t("na");
   }
 
-  detectAndPlayTxSounds(data, { silent });
+  if (!isSilent) {
+    detectAndPlayTxSounds(data, { silent });
+  }
 
   AppState.lastAppliedData = data;
   AppState.currentLookupInput = data.addressData.address;
@@ -273,6 +377,8 @@ function startAutoRefresh() {
 }
 
 window.resolveAddressNetwork = resolveAddressNetwork;
+window.formatLookupNetwork = formatLookupNetwork;
+window.setSilentPaymentMetaVisibility = setSilentPaymentMetaVisibility;
 window.loadAddressData = loadAddressData;
 window.applyAddressData = applyAddressData;
 window.refreshAddressSilently = refreshAddressSilently;

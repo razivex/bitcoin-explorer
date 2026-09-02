@@ -51,7 +51,7 @@ window.AppState = {
    * @type {{ kind: "channel", input: string } | null}
    */
   lookupBackTarget: null,
-  /** @type {"bitcoin" | "liquid" | "lightning" | null} */
+  /** @type {"bitcoin" | "bitcoin-testnet" | "liquid" | "lightning" | null} */
   currentNetwork: null,
   cachedBlockHeight: null,
   cachedLiquidBlockHeight: null,

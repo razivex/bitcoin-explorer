@@ -897,7 +897,17 @@ async function fetchBlockHeight() {
       fetchNonZeroAddresses(),
     ]);
 
+    const previousHeight = AppState.cachedBlockHeight;
     AppState.cachedBlockHeight = height;
+    if (
+      previousHeight != null &&
+      Number.isFinite(Number(previousHeight)) &&
+      Number.isFinite(Number(height)) &&
+      Number(height) > Number(previousHeight) &&
+      typeof notifyNewBlock === "function"
+    ) {
+      notifyNewBlock(height);
+    }
     updateBlockHeightTooltip();
     if (AppDom.txResultEl.classList.contains("show")) {
       updateTxConfirmationsDisplay();

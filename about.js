@@ -9,6 +9,7 @@ No accounts, no backend — everything runs in your browser.
 Paste any of these into the search box and hit Check:
 
 • Bitcoin or Liquid addresses
+• Silent payment addresses (sp1… / BIP-352)
 • Public keys (including old P2PK)
 • Transaction IDs
 • Lightning addresses (user@domain)
@@ -19,6 +20,7 @@ Paste any of these into the search box and hit Check:
 
 • Confirmed balance with live fiat (USD or BRL)
 • Unconfirmed / mempool activity when it applies
+• Silent payment decode (scan key and spend key; balance stays confidential)
 • Transaction details (fee, confirmations, embedded data, and more)
 • Lightning channel, address, and invoice details
 • QR codes for addresses and invoices
@@ -28,9 +30,9 @@ Paste any of these into the search box and hit Check:
 
 • Bitcoin logo (top left) returns you to the home screen
 • Network and Valuation open pages with live chain and market stat cards
-• Settings (gear) covers language, currency, and this About page
+• Settings (gear) covers language, currency, browser notifications, and this About page
 • Sound toggle mutes confirmation / mempool alerts
-• Language and currency choices are saved in your browser
+• Language, currency, and notification choices are saved in your browser
 
 ## Data sources
 
