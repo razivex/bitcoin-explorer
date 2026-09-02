@@ -14,9 +14,27 @@ const DEFAULT_NOTIFY_PREFS = {
 };
 
 let notifyPrefs = { ...DEFAULT_NOTIFY_PREFS };
+let notifyServiceWorkerPromise = null;
 
 function isNotificationApiAvailable() {
   return typeof window.Notification === "function";
+}
+
+function ensureNotifyServiceWorker() {
+  if (notifyServiceWorkerPromise) return notifyServiceWorkerPromise;
+  if (!("serviceWorker" in navigator)) {
+    notifyServiceWorkerPromise = Promise.resolve(null);
+    return notifyServiceWorkerPromise;
+  }
+
+  notifyServiceWorkerPromise = navigator.serviceWorker
+    .register("sw.js")
+    .then((registration) => registration)
+    .catch((err) => {
+      console.error(err);
+      return null;
+    });
+  return notifyServiceWorkerPromise;
 }
 
 function loadNotificationPrefs() {
@@ -86,6 +104,15 @@ async function setNotificationEnabled(type, enabled) {
 
   notifyPrefs = { ...notifyPrefs, [type]: Boolean(enabled) };
   saveNotificationPrefs(notifyPrefs);
+
+  if (notifyPrefs[type]) {
+    showAppNotification({
+      title: t("notifyTestTitle"),
+      body: t("notifyTestBody"),
+      tag: "notify-test",
+    });
+  }
+
   return notifyPrefs[type];
 }
 
@@ -99,27 +126,51 @@ function shortNotifyId(value, visibleChars = 22) {
   return `${text.slice(0, 8)}...${text.slice(-8)}`;
 }
 
+function notificationOptions({ body, tag }) {
+  return {
+    body: body || "",
+    tag: tag || undefined,
+    // Silent toasts are easy to miss on Windows; show a normal banner.
+    silent: false,
+    renotify: Boolean(tag),
+    icon: "favicon.svg",
+  };
+}
+
+function showNotificationViaConstructor(title, options) {
+  const notification = new Notification(title, options);
+  notification.addEventListener("click", () => {
+    try {
+      window.focus();
+    } catch (err) {
+      console.error(err);
+    }
+    notification.close();
+  });
+}
+
 function showAppNotification({ title, body, tag }) {
   if (!isNotificationApiAvailable()) return;
   if (Notification.permission !== "granted") return;
 
-  try {
-    const notification = new Notification(title, {
-      body: body || "",
-      tag: tag || undefined,
-      silent: true,
-    });
-    notification.addEventListener("click", () => {
-      try {
-        window.focus();
-      } catch (err) {
-        console.error(err);
+  const options = notificationOptions({ body, tag });
+
+  void ensureNotifyServiceWorker()
+    .then((registration) => {
+      if (registration?.showNotification) {
+        return registration.showNotification(title, options);
       }
-      notification.close();
+      showNotificationViaConstructor(title, options);
+      return undefined;
+    })
+    .catch((err) => {
+      console.error(err);
+      try {
+        showNotificationViaConstructor(title, options);
+      } catch (fallbackErr) {
+        console.error(fallbackErr);
+      }
     });
-  } catch (err) {
-    console.error(err);
-  }
 }
 
 function notifyNewBlock(height) {
@@ -208,6 +259,9 @@ function updateNotificationsUi() {
 
 notifyPrefs = loadNotificationPrefs();
 updateNotificationsUi();
+if (anyNotificationEnabled()) {
+  void ensureNotifyServiceWorker();
+}
 
 window.NOTIFY_TYPES = NOTIFY_TYPES;
 window.updateNotificationsUi = updateNotificationsUi;

@@ -25,6 +25,9 @@ let recentPollTimer = null;
 let spawnLoopTimer = null;
 let recentPollInitialized = false;
 let watchedLookup = null;
+let watchedTxid = null;
+let addressNotifyArmed = false;
+let addressNotifyArmTimer = null;
 const seenTxids = new Set();
 const blockQueue = [];
 let activeBlocks = 0;
@@ -188,6 +191,15 @@ function notifyNewMempoolTxs(txs, variant = "default") {
     window.addLiveMempoolTransactions?.(uniqueNew);
   }
 
+  if (
+    variant === "address" &&
+    uniqueNew > 0 &&
+    addressNotifyArmed &&
+    typeof refreshAddressSilently === "function"
+  ) {
+    void refreshAddressSilently();
+  }
+
   enqueueBlockEntries(entries);
 }
 
@@ -311,6 +323,19 @@ function spawnAddressBlocks(count = 1) {
   enqueueBlocks(count, "address");
 }
 
+function armAddressNotifications() {
+  if (addressNotifyArmTimer !== null) {
+    window.clearTimeout(addressNotifyArmTimer);
+    addressNotifyArmTimer = null;
+  }
+  addressNotifyArmed = false;
+  if (!watchedLookup) return;
+  addressNotifyArmTimer = window.setTimeout(() => {
+    addressNotifyArmTimer = null;
+    addressNotifyArmed = true;
+  }, 2500);
+}
+
 function setWatchedLookup(target) {
   if (!target?.displayValue) {
     watchedLookup = null;
@@ -323,7 +348,18 @@ function setWatchedLookup(target) {
     };
   }
 
+  armAddressNotifications();
   sendWatchSubscription();
+}
+
+function setWatchedTx(txid) {
+  const next = String(txid || "").trim().toLowerCase();
+  watchedTxid = next || null;
+  sendTxWatchSubscription();
+}
+
+function clearWatchedTx() {
+  setWatchedTx(null);
 }
 
 function clearWatchedLookup() {
@@ -355,6 +391,14 @@ function sendWatchSubscription() {
   );
 }
 
+function sendTxWatchSubscription() {
+  if (!mempoolSocket || mempoolSocket.readyState !== WebSocket.OPEN) return;
+
+  mempoolSocket.send(
+    JSON.stringify({ "track-tx": watchedTxid || "stop" }),
+  );
+}
+
 function parseJsonField(raw) {
   if (!raw) return null;
 
@@ -382,14 +426,70 @@ function handleScriptPubkeyTransactions(raw) {
   if (!data || typeof data !== "object") return;
 
   const txs = [];
+  const confirmedTxs = [];
 
   for (const bucket of Object.values(data)) {
     for (const tx of bucket?.mempool || []) {
       if (tx?.txid) txs.push(tx);
     }
+    for (const tx of bucket?.confirmed || []) {
+      if (tx?.txid) confirmedTxs.push(tx);
+    }
   }
 
   notifyNewMempoolTxs(txs, "address");
+  if (confirmedTxs.length) {
+    handleAddressBlockTransactions(confirmedTxs);
+  }
+}
+
+function handleAddressBlockTransactions(raw) {
+  const txs = parseJsonField(raw);
+  if (!Array.isArray(txs) || txs.length === 0) return;
+  if (!addressNotifyArmed) return;
+
+  if (typeof refreshAddressSilently === "function") {
+    void refreshAddressSilently();
+  }
+}
+
+function applyIncomingBlockHeight(height, { notify = false } = {}) {
+  const nextHeight = Number(height);
+  if (!Number.isFinite(nextHeight)) return;
+
+  const previous = AppState.cachedBlockHeight;
+  const previousHeight = Number(previous);
+  const hadPrevious = previous != null && Number.isFinite(previousHeight);
+
+  if (!hadPrevious || nextHeight >= previousHeight) {
+    AppState.cachedBlockHeight = nextHeight;
+    if (typeof updateBlockHeightTooltip === "function") {
+      updateBlockHeightTooltip();
+    }
+    if (
+      typeof updateTxConfirmationsDisplay === "function" &&
+      AppDom.txResultEl?.classList.contains("show")
+    ) {
+      updateTxConfirmationsDisplay();
+    }
+  }
+
+  if (notify && hadPrevious && nextHeight > previousHeight) {
+    if (typeof notifyNewBlock === "function") {
+      notifyNewBlock(nextHeight);
+    }
+  }
+}
+
+function handleTrackedTransaction(raw) {
+  const tx = parseJsonField(raw);
+  if (!tx?.txid || !watchedTxid) return;
+  if (String(tx.txid).toLowerCase() !== watchedTxid) return;
+  if (!tx.status?.confirmed) return;
+
+  if (typeof refreshTransactionSilently === "function") {
+    void refreshTransactionSilently();
+  }
 }
 
 function parseMempoolDelta(rawDelta) {
@@ -435,12 +535,33 @@ function handleSocketMessage(message) {
     handleAddressTransactions(message["address-transactions"]);
   }
 
+  if (message["block-transactions"]) {
+    handleAddressBlockTransactions(message["block-transactions"]);
+  }
+
   if (message["multi-scriptpubkey-transactions"]) {
     handleScriptPubkeyTransactions(message["multi-scriptpubkey-transactions"]);
   }
 
   if (message["mempool-transactions"]) {
     handleMempoolDelta(message["mempool-transactions"]);
+  }
+
+  if (Array.isArray(message.blocks) && message.blocks.length) {
+    const heights = message.blocks
+      .map((block) => Number(block?.height))
+      .filter((height) => Number.isFinite(height));
+    if (heights.length) {
+      applyIncomingBlockHeight(Math.max(...heights), { notify: false });
+    }
+  }
+
+  if (message.block) {
+    applyIncomingBlockHeight(message.block.height, { notify: true });
+  }
+
+  if (message.tx) {
+    handleTrackedTransaction(message.tx);
   }
 }
 
@@ -530,8 +651,12 @@ function connectMempoolWebSocket() {
   mempoolSocket.addEventListener("open", () => {
     clearWsConnectTimer();
     mempoolSocket.send(JSON.stringify({ action: "init" }));
+    mempoolSocket.send(
+      JSON.stringify({ action: "want", data: ["blocks"] }),
+    );
     mempoolSocket.send(JSON.stringify({ "track-mempool": true }));
     sendWatchSubscription();
+    sendTxWatchSubscription();
   });
 
   mempoolSocket.addEventListener("message", (event) => {
@@ -564,6 +689,8 @@ window.spawnFallingBlocks = spawnFallingBlocks;
 window.spawnAddressBlocks = spawnAddressBlocks;
 window.setWatchedLookup = setWatchedLookup;
 window.clearWatchedLookup = clearWatchedLookup;
+window.setWatchedTx = setWatchedTx;
+window.clearWatchedTx = clearWatchedTx;
 window.isMempoolSocketConnected = isMempoolSocketConnected;
 
 if (document.readyState === "loading") {

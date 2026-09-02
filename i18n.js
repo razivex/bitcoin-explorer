@@ -178,6 +178,9 @@ const translations = {
     notifyBodyBlock: "Block height: {height}",
     notifyBodyTx: "Transaction {txid}",
     notifyBodyAddress: "Address {address}",
+    notifyTestTitle: "Notifications enabled",
+    notifyTestBody:
+      "Alerts appear in Windows while this tab stays open. You can minimize it, but do not close it.",
     about: "About",
     aboutClose: "Close",
     aboutLoading: "Loading…",
@@ -418,6 +421,9 @@ const translations = {
     notifyBodyBlock: "Altura do bloco: {height}",
     notifyBodyTx: "Transação {txid}",
     notifyBodyAddress: "Endereço {address}",
+    notifyTestTitle: "Notificações ativadas",
+    notifyTestBody:
+      "Os alertas aparecem no Windows enquanto esta aba permanecer aberta. Você pode minimizar, mas não feche.",
     about: "Sobre",
     aboutClose: "Fechar",
     aboutLoading: "Carregando…",

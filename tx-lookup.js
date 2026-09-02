@@ -281,6 +281,14 @@ function applyTransactionData(data, { silent = false } = {}) {
 
   detectAndPlayTxConfirmationSound(data, { silent });
 
+  if (typeof setWatchedTx === "function") {
+    if (!data.confirmed && data.network !== "liquid") {
+      setWatchedTx(data.txid);
+    } else {
+      clearWatchedTx();
+    }
+  }
+
   AppState.lastAppliedTxData = data;
   AppState.currentTxLookup = data.txid;
   AppDom.resultEl.classList.remove("show");
@@ -332,6 +340,9 @@ function resetTransactionLookupState() {
   resetTxConfirmationWatchState();
   AppState.currentTxLookup = null;
   AppState.lastAppliedTxData = null;
+  if (typeof clearWatchedTx === "function") {
+    clearWatchedTx();
+  }
 }
 
 window.getTxConfirmationCount = getTxConfirmationCount;
