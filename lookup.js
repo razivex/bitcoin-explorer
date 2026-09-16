@@ -312,16 +312,20 @@ function goToHome(event) {
 }
 
 /**
- * Switch between the check search card and Network / Valuation stats pages.
- * @param {"check" | "network" | "valuation"} view
+ * Switch between the check search card and Network / Valuation / Settings pages.
+ * @param {"check" | "network" | "valuation" | "settings"} view
  */
 function showAppView(view) {
-  const next = view === "network" || view === "valuation" ? view : "check";
+  const next =
+    view === "network" || view === "valuation" || view === "settings"
+      ? view
+      : "check";
 
   const views = [
     ["check", AppDom.checkViewEl],
     ["network", AppDom.networkViewEl],
     ["valuation", AppDom.valuationViewEl],
+    ["settings", AppDom.settingsViewEl],
   ];
 
   for (const [name, el] of views) {
@@ -331,6 +335,8 @@ function showAppView(view) {
 
   AppDom.navNetworkBtn?.classList.toggle("is-active", next === "network");
   AppDom.navValuationBtn?.classList.toggle("is-active", next === "valuation");
+  AppDom.settingsToggleBtn?.classList.toggle("is-active", next === "settings");
+  AppDom.settingsToggleBtn?.setAttribute("aria-pressed", String(next === "settings"));
 
   if (next === "network" || next === "valuation") {
     if (typeof updateBlockHeightTooltip === "function") {
@@ -338,8 +344,20 @@ function showAppView(view) {
     }
   }
 
+  if (next === "settings" && typeof setSettingsPanel === "function") {
+    setSettingsPanel(
+      typeof getCurrentSettingsPanel === "function"
+        ? getCurrentSettingsPanel()
+        : "language",
+    );
+  }
+
   if (typeof syncLivePricePolling === "function") {
     syncLivePricePolling();
+  }
+
+  if (typeof scheduleI18nFit === "function") {
+    scheduleI18nFit();
   }
 }
 
@@ -349,6 +367,9 @@ function bindNavViewEvents() {
   });
   AppDom.navValuationBtn?.addEventListener("click", () => {
     showAppView("valuation");
+  });
+  AppDom.settingsToggleBtn?.addEventListener("click", () => {
+    showAppView("settings");
   });
 }
 

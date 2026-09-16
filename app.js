@@ -1,13 +1,17 @@
 function initApp() {
-  loadCachedMarketMetrics();
-  startBlockHeightRefresh();
-  startMarketMetricsRefresh();
-  if (typeof bindPricePollingEvents === "function") {
-    bindPricePollingEvents();
-  }
-  // Paint Loading… (or cached values) on Network / Valuation cards immediately.
-  if (typeof updateBlockHeightTooltip === "function") {
-    updateBlockHeightTooltip();
+  try {
+    loadCachedMarketMetrics();
+    startBlockHeightRefresh();
+    startMarketMetricsRefresh();
+    if (typeof bindPricePollingEvents === "function") {
+      bindPricePollingEvents();
+    }
+    // Paint Loading… (or cached values) on Network / Valuation cards immediately.
+    if (typeof updateBlockHeightTooltip === "function") {
+      updateBlockHeightTooltip();
+    }
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -95,7 +99,11 @@ function bindAppEvents() {
     if (AppDom.lookupBtn.disabled) {
       AppDom.lookupBtn.textContent = t("loading");
     }
-    void refreshDisplayedData();
+    void refreshDisplayedData().then(() => {
+      if (typeof scheduleI18nFit === "function") {
+        scheduleI18nFit();
+      }
+    });
   });
 
   if (typeof onCurrencyChange === "function") {

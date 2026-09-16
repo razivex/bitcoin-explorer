@@ -18,7 +18,7 @@ Paste any of these into the search box and hit Check:
 
 ## What you get
 
-• Confirmed balance with live fiat (USD or BRL)
+• Confirmed balance with live fiat (USD, BRL, EUR, or JPY)
 • Unconfirmed / mempool activity when it applies
 • Silent payment decode (scan key and spend key; balance stays confidential)
 • Transaction details (fee, confirmations, embedded data, and more)
@@ -38,7 +38,7 @@ Paste any of these into the search box and hit Check:
 
 On-chain and Lightning channel data mainly come from mempool.space (with public mirrors).
 Lightning addresses use LNURL-pay on the recipient’s domain.
-Live prices come from exchange tickers (Binance, then Coinbase), only while you are looking at Valuation or an address balance. USD and BRL both tick about once a second. If those feeds fail, the app falls back to mempool.space (USD) and CoinGecko (BRL).
+Live prices come from exchange tickers (Binance, then Coinbase), only while you are looking at Valuation or an address balance. USD, BRL, EUR, and JPY tick about once a second. If those feeds fail, the app falls back to mempool.space and CoinGecko.
 
 ## Author
 

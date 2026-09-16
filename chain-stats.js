@@ -82,7 +82,7 @@ async function fetchMvrvFromCoinMetrics() {
 }
 
 function formatTooltipBitcoinPrice() {
-  const price = getFiatPrice();
+  const price = typeof getFiatPrice === "function" ? getFiatPrice() : 0;
   if (!price) return t("na");
   return formatFiat(price);
 }
@@ -667,7 +667,7 @@ function updateValuationStats() {
   const mayer = AppState.cachedMarketMetrics.mayerMultiple;
   const mvrv = AppState.cachedMarketMetrics.mvrv;
   const fearGreed = AppState.cachedMarketMetrics.fearGreed;
-  const price = getFiatPrice();
+  const price = typeof getFiatPrice === "function" ? getFiatPrice() : 0;
   const hasMayer = isFiniteStatValue(mayer) && Number(mayer) > 0;
   const hasMvrv = isFiniteStatValue(mvrv) && Number(mvrv) > 0;
   const hasFearGreed = isFiniteStatValue(fearGreed);
@@ -701,6 +701,9 @@ function updateValuationStats() {
 function updateBlockHeightTooltip() {
   updateNetworkStats();
   updateValuationStats();
+  if (typeof scheduleI18nFit === "function") {
+    scheduleI18nFit();
+  }
 }
 
 async function fetchMayerMultiple() {

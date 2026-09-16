@@ -72,6 +72,9 @@ function openInvoiceOverlay() {
   AppDom.invoiceOverlay.hidden = false;
   AppDom.invoiceOverlay.setAttribute("aria-hidden", "false");
   AppDom.invoiceAmountInput?.focus();
+  if (typeof scheduleI18nFit === "function") {
+    scheduleI18nFit();
+  }
 }
 
 function buildLnurlCallbackUrl(callback, amountMsat, comment) {

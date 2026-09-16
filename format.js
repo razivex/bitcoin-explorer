@@ -14,11 +14,13 @@ function formatBtc(btc) {
 }
 
 function formatFiat(value) {
+  const currency = getDisplayCurrency();
+  const fractionDigits = currency === "JPY" ? 0 : 2;
   return value.toLocaleString(getLocale(), {
     style: "currency",
-    currency: getDisplayCurrency(),
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    currency,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
 }
 
@@ -29,7 +31,7 @@ function formatDateTime(date) {
   const minutes = pad2(date.getMinutes());
   const seconds = pad2(date.getSeconds());
 
-  if (getCurrentLang() === "pt-BR") {
+  if (getCurrentLang() !== "en") {
     return `${day}/${month}/${year} ${pad2(date.getHours())}:${minutes}:${seconds}`;
   }
 

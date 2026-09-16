@@ -1,16 +1,5 @@
-const COINGECKO_BRL_PRICE_URL =
-  "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl";
-
 let pricePollInFlight = false;
 let pricePollEventsBound = false;
-
-async function fetchJson(url) {
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) {
-    throw new Error(`API error (${response.status})`);
-  }
-  return response.json();
-}
 
 function parseFiatPrice(prices, currency = getDisplayCurrency()) {
   if (!prices || typeof prices !== "object") return 0;
@@ -31,13 +20,16 @@ function buildFiatText(confirmedBtc) {
   return `≈ ${formatFiat(confirmedBtc * price)} ${currency}`;
 }
 
-async function fetchBrlPrice() {
+async function fetchCoinGeckoPrice(currency = getDisplayCurrency()) {
+  const code = String(currency || "USD").toUpperCase();
+  const key = code.toLowerCase();
+
   try {
-    const data = await fetchJson(COINGECKO_BRL_PRICE_URL);
-    const brl = Number(data?.bitcoin?.brl);
-    if (Number.isFinite(brl) && brl > 0) {
-      AppState.cachedPrices.BRL = brl;
-      return brl;
+    const data = await fetchJson(COINGECKO_FIAT_PRICE_URL);
+    const value = Number(data?.bitcoin?.[key]);
+    if (Number.isFinite(value) && value > 0) {
+      AppState.cachedPrices[code] = value;
+      return value;
     }
   } catch (err) {
     console.error(err);
@@ -46,12 +38,16 @@ async function fetchBrlPrice() {
   return 0;
 }
 
+async function fetchBrlPrice() {
+  return fetchCoinGeckoPrice("BRL");
+}
+
 async function ensureBrlPriceCached() {
   if (parseFiatPrice(AppState.cachedPrices, "BRL") > 0) {
     return AppState.cachedPrices.BRL;
   }
 
-  return fetchBrlPrice();
+  return fetchCoinGeckoPrice("BRL");
 }
 
 function isValuationViewVisible() {
@@ -126,16 +122,17 @@ async function fetchFiatPrice() {
   }
 
   try {
-    if (currency === "BRL") {
-      await fetchBrlPrice();
-    } else {
-      const prices = await fetchMempoolPrices();
-      AppState.cachedPrices = { ...AppState.cachedPrices, ...prices };
-    }
+    const prices = await fetchMempoolPrices();
+    AppState.cachedPrices = { ...AppState.cachedPrices, ...prices };
   } catch (err) {
     console.error(err);
   }
 
+  if (parseFiatPrice(AppState.cachedPrices, currency) > 0) {
+    return AppState.cachedPrices[currency];
+  }
+
+  await fetchCoinGeckoPrice(currency);
   return getFiatPrice();
 }
 
@@ -198,7 +195,6 @@ function bindPricePollingEvents() {
   });
 }
 
-window.fetchJson = fetchJson;
 window.parseFiatPrice = parseFiatPrice;
 window.getFiatPrice = getFiatPrice;
 window.buildFiatText = buildFiatText;

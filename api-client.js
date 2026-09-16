@@ -29,52 +29,44 @@ const MEMPOOL_WS_PROVIDERS = [
   "wss://mempool.ninja/api/v1/ws",
 ];
 
-const COINGECKO_USD_PRICE_URL =
-  "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd";
+const COINGECKO_FIAT_PRICE_URL =
+  "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,brl,eur,jpy";
 const BLOCKCHAIN_INFO_DIFFICULTY_URL =
   "https://blockchain.info/q/getdifficulty";
 const BLOCKCHAIN_INFO_HASHRATE_URL = "https://blockchain.info/q/hashrate";
 
+function liveTickerSources(binanceSymbol, coinbasePair) {
+  return [
+    {
+      name: "Binance",
+      url: `https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`,
+      parse: (data) => Number(data?.price),
+    },
+    {
+      name: "Binance Vision",
+      url: `https://data-api.binance.vision/api/v3/ticker/price?symbol=${binanceSymbol}`,
+      parse: (data) => Number(data?.price),
+    },
+    {
+      name: "Coinbase",
+      url: `https://api.coinbase.com/v2/prices/${coinbasePair}/spot`,
+      parse: (data) => Number(data?.data?.amount),
+    },
+  ];
+}
+
 const LIVE_TICKER_SOURCES = {
-  USD: [
-    {
-      name: "Binance",
-      url: "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
-      parse: (data) => Number(data?.price),
-    },
-    {
-      name: "Binance Vision",
-      url: "https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCUSDT",
-      parse: (data) => Number(data?.price),
-    },
-    {
-      name: "Coinbase",
-      url: "https://api.coinbase.com/v2/prices/BTC-USD/spot",
-      parse: (data) => Number(data?.data?.amount),
-    },
-  ],
-  BRL: [
-    {
-      name: "Binance",
-      url: "https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL",
-      parse: (data) => Number(data?.price),
-    },
-    {
-      name: "Binance Vision",
-      url: "https://data-api.binance.vision/api/v3/ticker/price?symbol=BTCBRL",
-      parse: (data) => Number(data?.price),
-    },
-    {
-      name: "Coinbase",
-      url: "https://api.coinbase.com/v2/prices/BTC-BRL/spot",
-      parse: (data) => Number(data?.data?.amount),
-    },
-  ],
+  USD: liveTickerSources("BTCUSDT", "BTC-USD"),
+  BRL: liveTickerSources("BTCBRL", "BTC-BRL"),
+  EUR: liveTickerSources("BTCEUR", "BTC-EUR"),
+  JPY: liveTickerSources("BTCJPY", "BTC-JPY"),
 };
 
 const lastGoodTickerIndex = {
   USD: -1,
   BRL: -1,
+  EUR: -1,
+  JPY: -1,
 };
 const TICKER_TIMEOUT_MS = 2500;
 
@@ -101,6 +93,14 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
   } finally {
     window.clearTimeout(timeoutId);
   }
+}
+
+async function fetchJson(url) {
+  const response = await fetchWithTimeout(url);
+  if (!response.ok) {
+    throw new Error(`API error (${response.status})`);
+  }
+  return response.json();
 }
 
 async function tryProviders(providers, tryFn, label = "API") {
@@ -262,11 +262,16 @@ async function fetchMempoolPrices() {
     );
   }
 
-  const data = await fetchFromProvider("", COINGECKO_USD_PRICE_URL, {
+  const data = await fetchFromProvider("", COINGECKO_FIAT_PRICE_URL, {
     validate: (payload) => Number(payload?.bitcoin?.usd) > 0,
   });
-  const usd = Number(data.bitcoin.usd);
-  return { USD: usd };
+  const btc = data.bitcoin || {};
+  return {
+    USD: Number(btc.usd) || undefined,
+    BRL: Number(btc.brl) || undefined,
+    EUR: Number(btc.eur) || undefined,
+    JPY: Number(btc.jpy) || undefined,
+  };
 }
 
 async function fetchMempoolMiningStats() {
@@ -388,6 +393,7 @@ window.WS_CONNECT_TIMEOUT_MS = WS_CONNECT_TIMEOUT_MS;
 window.MEMPOOL_API_PROVIDERS = MEMPOOL_API_PROVIDERS;
 window.LIQUID_API_PROVIDERS = LIQUID_API_PROVIDERS;
 window.fetchWithTimeout = fetchWithTimeout;
+window.fetchJson = fetchJson;
 window.fetchMempoolJson = fetchMempoolJson;
 window.fetchMempoolText = fetchMempoolText;
 window.fetchMempoolOnlyJson = fetchMempoolOnlyJson;
