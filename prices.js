@@ -28,7 +28,14 @@ async function fetchCoinGeckoPrice(currency = getDisplayCurrency()) {
     const data = await fetchJson(COINGECKO_FIAT_PRICE_URL);
     const value = Number(data?.bitcoin?.[key]);
     if (Number.isFinite(value) && value > 0) {
+      const prev = AppState.cachedPrices[code];
       AppState.cachedPrices[code] = value;
+      if (
+        prev !== value &&
+        typeof saveCachedMarketMetrics === "function"
+      ) {
+        saveCachedMarketMetrics();
+      }
       return value;
     }
   } catch (err) {
@@ -111,7 +118,14 @@ async function fetchFiatPrice() {
   try {
     const value = await fetchExchangeTickerPrice(currency);
     if (Number.isFinite(value) && value > 0) {
+      const prev = AppState.cachedPrices[currency];
       AppState.cachedPrices[currency] = value;
+      if (
+        prev !== value &&
+        typeof saveCachedMarketMetrics === "function"
+      ) {
+        saveCachedMarketMetrics();
+      }
       return value;
     }
   } catch (err) {
@@ -123,7 +137,14 @@ async function fetchFiatPrice() {
 
   try {
     const prices = await fetchMempoolPrices();
+    const prev = JSON.stringify(AppState.cachedPrices);
     AppState.cachedPrices = { ...AppState.cachedPrices, ...prices };
+    if (
+      JSON.stringify(AppState.cachedPrices) !== prev &&
+      typeof saveCachedMarketMetrics === "function"
+    ) {
+      saveCachedMarketMetrics();
+    }
   } catch (err) {
     console.error(err);
   }

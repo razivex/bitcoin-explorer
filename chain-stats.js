@@ -14,6 +14,7 @@ let liveTxFlushTimer = null;
 let mempoolSnapshotReady = false;
 const MARKET_METRICS_CACHE_KEY = "bitcoinExplorer.marketMetrics";
 let lastNonZeroAddressesFetchAt = 0;
+let blockHeightWatchReady = false;
 const MAYER_CHEAP_MAX = 1;
 const MAYER_NEUTRAL_MAX = 2.4;
 const MVRV_CHEAP_MAX = 1;
@@ -23,18 +24,57 @@ const FEAR_GREED_NEUTRAL_MAX = 55;
 const FEAR_GREED_CHEAP_LABELS = new Set(["Extreme Fear", "Fear"]);
 const FEAR_GREED_EXPENSIVE_LABELS = new Set(["Greed", "Extreme Greed"]);
 
+function applyCachedNumericFields(target, source, keys) {
+  if (!target || !source || typeof source !== "object") return;
+  for (const key of keys) {
+    if (isFiniteStatValue(source[key])) {
+      target[key] = Number(source[key]);
+    }
+  }
+}
+
 function loadCachedMarketMetrics() {
   try {
     const raw = localStorage.getItem(MARKET_METRICS_CACHE_KEY);
     if (!raw) return;
 
     const parsed = JSON.parse(raw);
-    if (Date.now() - parsed.timestamp > MARKET_METRICS_REFRESH_MS) return;
+    if (!parsed || typeof parsed !== "object") return;
 
-    AppState.cachedMarketMetrics = {
-      ...AppState.cachedMarketMetrics,
-      ...parsed.metrics,
-    };
+    // Keep stale values on screen while a refresh is in flight.
+    const metrics = parsed.metrics;
+    if (metrics && typeof metrics === "object") {
+      applyCachedNumericFields(AppState.cachedMarketMetrics, metrics, [
+        "mayerMultiple",
+        "mvrv",
+        "fearGreed",
+      ]);
+      if (typeof metrics.fearGreedLabel === "string" && metrics.fearGreedLabel) {
+        AppState.cachedMarketMetrics.fearGreedLabel = metrics.fearGreedLabel;
+      }
+    }
+
+    applyCachedNumericFields(AppState.cachedMiningStats, parsed.miningStats, [
+      "hashrate",
+      "difficulty",
+      "feeRate",
+      "nonZeroAddresses",
+      "totalTransactions",
+      "mempoolTxCount",
+    ]);
+
+    if (isFiniteStatValue(parsed.blockHeight)) {
+      AppState.cachedBlockHeight = Number(parsed.blockHeight);
+    }
+
+    const prices = parsed.prices;
+    if (prices && typeof prices === "object") {
+      for (const [code, value] of Object.entries(prices)) {
+        if (isFiniteStatValue(value) && Number(value) > 0) {
+          AppState.cachedPrices[code] = Number(value);
+        }
+      }
+    }
   } catch (err) {
     console.error(err);
   }
@@ -42,11 +82,22 @@ function loadCachedMarketMetrics() {
 
 function saveCachedMarketMetrics() {
   try {
+    const mining = AppState.cachedMiningStats || {};
     localStorage.setItem(
       MARKET_METRICS_CACHE_KEY,
       JSON.stringify({
         timestamp: Date.now(),
         metrics: AppState.cachedMarketMetrics,
+        miningStats: {
+          hashrate: mining.hashrate,
+          difficulty: mining.difficulty,
+          feeRate: mining.feeRate,
+          nonZeroAddresses: mining.nonZeroAddresses,
+          totalTransactions: mining.totalTransactions,
+          mempoolTxCount: mining.mempoolTxCount,
+        },
+        blockHeight: AppState.cachedBlockHeight,
+        prices: AppState.cachedPrices,
       }),
     );
   } catch (err) {
@@ -571,7 +622,8 @@ function clearStatLoading(el) {
 }
 
 /**
- * Show an animated Loading… state until a finite value is available.
+ * Paint a finite value, or Loading… only when this card has no cached value yet.
+ * A later refresh with ready=true replaces the cached value in place.
  * @param {HTMLElement | null} el
  * @param {{
  *   ready: boolean,
@@ -584,13 +636,18 @@ function clearStatLoading(el) {
 function setStatValueOrLoading(el, { ready, text, value = null, tone = null, instant = false } = {}) {
   if (!el) return;
 
-  if (!ready) {
-    setStatLoading(el);
+  if (ready) {
+    clearStatLoading(el);
+    setStatValue(el, { text, value, tone, instant });
     return;
   }
 
-  clearStatLoading(el);
-  setStatValue(el, { text, value, tone, instant });
+  // Keep the last known value visible while a refresh is in flight.
+  if (el.dataset.statLoading !== "1" && el.dataset.displayText) {
+    return;
+  }
+
+  setStatLoading(el);
 }
 
 function updateNetworkStats() {
@@ -903,6 +960,7 @@ async function fetchBlockHeight() {
     const previousHeight = AppState.cachedBlockHeight;
     AppState.cachedBlockHeight = height;
     if (
+      blockHeightWatchReady &&
       previousHeight != null &&
       Number.isFinite(Number(previousHeight)) &&
       Number.isFinite(Number(height)) &&
@@ -911,6 +969,8 @@ async function fetchBlockHeight() {
     ) {
       notifyNewBlock(height);
     }
+    blockHeightWatchReady = true;
+    saveCachedMarketMetrics();
     updateBlockHeightTooltip();
     if (AppDom.txResultEl.classList.contains("show")) {
       updateTxConfirmationsDisplay();

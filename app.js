@@ -6,7 +6,7 @@ function initApp() {
     if (typeof bindPricePollingEvents === "function") {
       bindPricePollingEvents();
     }
-    // Paint Loading… (or cached values) on Network / Valuation cards immediately.
+    // Paint cached values immediately; Loading… only when a card has no cache.
     if (typeof updateBlockHeightTooltip === "function") {
       updateBlockHeightTooltip();
     }
