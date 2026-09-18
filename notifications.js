@@ -1,16 +1,18 @@
 const NOTIFY_STORAGE_KEY = "bitcoin-explorer-notifications";
 const NOTIFY_TYPES = [
   "newBlock",
+  "difficultyAdjustment",
+  "halving",
   "txConfirmed",
   "addressNewTx",
-  "addressTxConfirmed",
 ];
 
 const DEFAULT_NOTIFY_PREFS = {
   newBlock: false,
+  difficultyAdjustment: false,
+  halving: false,
   txConfirmed: false,
   addressNewTx: false,
-  addressTxConfirmed: false,
 };
 
 let notifyPrefs = { ...DEFAULT_NOTIFY_PREFS };
@@ -48,6 +50,10 @@ function loadNotificationPrefs() {
     const next = { ...DEFAULT_NOTIFY_PREFS };
     for (const type of NOTIFY_TYPES) {
       next[type] = Boolean(parsed[type]);
+    }
+    // Older builds stored address confirmations separately.
+    if (parsed.addressTxConfirmed) {
+      next.txConfirmed = true;
     }
     return next;
   } catch (err) {
@@ -173,17 +179,112 @@ function showAppNotification({ title, body, tag }) {
     });
 }
 
+function formatNotifyHeight(height) {
+  if (typeof formatBlockHeight === "function") {
+    return formatBlockHeight(height);
+  }
+  return String(height);
+}
+
+function heightCrossedInterval(previousHeight, nextHeight, interval) {
+  const prev = Number(previousHeight);
+  const next = Number(nextHeight);
+  const step = Number(interval);
+  if (
+    !Number.isFinite(prev) ||
+    !Number.isFinite(next) ||
+    !Number.isFinite(step) ||
+    step <= 0 ||
+    next <= prev
+  ) {
+    return false;
+  }
+  return Math.floor(next / step) > Math.floor(prev / step);
+}
+
+function latestIntervalHeight(height, interval) {
+  const next = Number(height);
+  const step = Number(interval);
+  if (!Number.isFinite(next) || !Number.isFinite(step) || step <= 0) {
+    return null;
+  }
+  return Math.floor(next / step) * step;
+}
+
+function subsidyBtcAtHeight(height) {
+  const interval = Number(AppConstants?.HALVING_INTERVAL);
+  const era = Math.floor(Number(height) / interval);
+  if (!Number.isFinite(era) || era < 0) return null;
+  return 50 / 2 ** era;
+}
+
+function formatNotifySubsidy(subsidyBtc) {
+  const value = Number(subsidyBtc);
+  if (!Number.isFinite(value)) return "";
+  const locale = typeof getLocale === "function" ? getLocale() : undefined;
+  return value.toLocaleString(locale, { maximumFractionDigits: 8 });
+}
+
+let lastNotifiedDifficultyHeight = null;
+let lastNotifiedHalvingHeight = null;
+
 function notifyNewBlock(height) {
   if (!isNotificationEnabled("newBlock")) return;
-  const formatted =
-    typeof formatBlockHeight === "function"
-      ? formatBlockHeight(height)
-      : String(height);
   showAppNotification({
     title: t("notifyNewBlock"),
-    body: t("notifyBodyBlock", { height: formatted }),
+    body: t("notifyBodyBlock", { height: formatNotifyHeight(height) }),
     tag: `block-${height}`,
   });
+}
+
+function notifyDifficultyAdjustment(height) {
+  if (!isNotificationEnabled("difficultyAdjustment")) return;
+  const retargetHeight = Number(height);
+  if (!Number.isFinite(retargetHeight) || retargetHeight <= 0) return;
+  if (lastNotifiedDifficultyHeight === retargetHeight) return;
+  lastNotifiedDifficultyHeight = retargetHeight;
+  showAppNotification({
+    title: t("notifyDifficulty"),
+    body: t("notifyBodyDifficulty", {
+      height: formatNotifyHeight(retargetHeight),
+    }),
+    tag: `difficulty-${retargetHeight}`,
+  });
+}
+
+function notifyHalving(height) {
+  if (!isNotificationEnabled("halving")) return;
+  const halvingHeight = Number(height);
+  if (!Number.isFinite(halvingHeight) || halvingHeight <= 0) return;
+  if (lastNotifiedHalvingHeight === halvingHeight) return;
+  lastNotifiedHalvingHeight = halvingHeight;
+  const subsidy = subsidyBtcAtHeight(halvingHeight);
+  showAppNotification({
+    title: t("notifyHalving"),
+    body: t("notifyBodyHalving", {
+      height: formatNotifyHeight(halvingHeight),
+      subsidy: formatNotifySubsidy(subsidy),
+    }),
+    tag: `halving-${halvingHeight}`,
+  });
+}
+
+function onBlockHeightAdvanced(previousHeight, nextHeight) {
+  notifyNewBlock(nextHeight);
+
+  const difficultyInterval = Number(
+    AppConstants?.DIFFICULTY_ADJUSTMENT_INTERVAL,
+  );
+  if (heightCrossedInterval(previousHeight, nextHeight, difficultyInterval)) {
+    notifyDifficultyAdjustment(
+      latestIntervalHeight(nextHeight, difficultyInterval),
+    );
+  }
+
+  const halvingInterval = Number(AppConstants?.HALVING_INTERVAL);
+  if (heightCrossedInterval(previousHeight, nextHeight, halvingInterval)) {
+    notifyHalving(latestIntervalHeight(nextHeight, halvingInterval));
+  }
 }
 
 function notifyTxConfirmed(data) {
@@ -214,12 +315,12 @@ function notifyAddressNewTx(data) {
 }
 
 function notifyAddressTxConfirmed(data) {
-  if (!isNotificationEnabled("addressTxConfirmed")) return;
+  if (!isNotificationEnabled("txConfirmed")) return;
   if (isSilentPaymentData(data)) return;
   const address = data?.addressData?.address || AppState.currentLookupInput;
   if (!address) return;
   showAppNotification({
-    title: t("notifyAddressTxConfirmed"),
+    title: t("notifyTxConfirmed"),
     body: t("notifyBodyAddress", { address: shortNotifyId(address) }),
     tag: `addr-confirmed-${address}`,
   });
@@ -227,6 +328,7 @@ function notifyAddressTxConfirmed(data) {
 
 function updateNotificationsUi() {
   const settingsNotifyValue = document.getElementById("settingsNotifyValue");
+  const settingsNotifyNav = document.getElementById("settingsNavNotifications");
   const supported = isNotificationApiAvailable();
   if (
     supported &&
@@ -238,14 +340,30 @@ function updateNotificationsUi() {
   }
   const prefs = getNotificationPrefs();
 
+  if (settingsNotifyNav) {
+    settingsNotifyNav.disabled = !supported;
+    settingsNotifyNav.setAttribute("aria-disabled", String(!supported));
+    settingsNotifyNav.classList.toggle("is-unavailable", !supported);
+  }
+
   if (settingsNotifyValue) {
-    if (!supported) {
-      settingsNotifyValue.textContent = t("notificationsUnsupported");
-    } else {
+    settingsNotifyValue.hidden = !supported;
+    if (supported) {
       settingsNotifyValue.textContent = anyNotificationEnabled()
         ? t("notificationsOn")
         : t("notificationsOff");
+    } else {
+      settingsNotifyValue.textContent = "";
     }
+  }
+
+  if (
+    !supported &&
+    typeof getCurrentSettingsPanel === "function" &&
+    getCurrentSettingsPanel() === "notifications" &&
+    typeof setSettingsPanel === "function"
+  ) {
+    setSettingsPanel("language");
   }
 
   document.querySelectorAll(".notifications-menu__option").forEach((option) => {
@@ -271,6 +389,9 @@ window.isNotificationEnabled = isNotificationEnabled;
 window.anyNotificationEnabled = anyNotificationEnabled;
 window.setNotificationEnabled = setNotificationEnabled;
 window.notifyNewBlock = notifyNewBlock;
+window.notifyDifficultyAdjustment = notifyDifficultyAdjustment;
+window.notifyHalving = notifyHalving;
+window.onBlockHeightAdvanced = onBlockHeightAdvanced;
 window.notifyTxConfirmed = notifyTxConfirmed;
 window.notifyAddressNewTx = notifyAddressNewTx;
 window.notifyAddressTxConfirmed = notifyAddressTxConfirmed;

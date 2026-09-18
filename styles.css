@@ -303,6 +303,24 @@ body {
   color: #f7931a;
 }
 
+.settings-menu__nav-item:disabled,
+.settings-menu__nav-item.is-unavailable,
+.settings-menu__nav-item:disabled:hover,
+.settings-menu__nav-item:disabled:focus,
+.settings-menu__nav-item.is-unavailable:hover,
+.settings-menu__nav-item.is-unavailable:focus,
+.settings-menu__nav-item:disabled.is-active,
+.settings-menu__nav-item:disabled.is-active:hover,
+.settings-menu__nav-item:disabled.is-active:focus,
+.settings-menu__nav-item.is-unavailable.is-active,
+.settings-menu__nav-item.is-unavailable.is-active:hover,
+.settings-menu__nav-item.is-unavailable.is-active:focus {
+  background: transparent;
+  color: #5c6b7c;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .settings-menu__label {
   flex: 1;
   min-width: 0;
@@ -521,9 +539,14 @@ body {
   background: transparent;
 }
 
-.notifications-menu__option:disabled {
+.notifications-menu__option:disabled,
+.notifications-menu__option:disabled:hover,
+.notifications-menu__option:disabled:focus {
+  background: transparent;
+  color: #5c6b7c;
   opacity: 0.55;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .lang-menu__option,
@@ -1008,6 +1031,25 @@ button:hover { background-color: #ffaa33; }
   color: #f7931a;
 }
 
+.settings-menu__nav-item:disabled,
+.settings-menu__nav-item.is-unavailable,
+.settings-menu__nav-item:disabled:hover,
+.settings-menu__nav-item:disabled:focus,
+.settings-menu__nav-item.is-unavailable:hover,
+.settings-menu__nav-item.is-unavailable:focus,
+.settings-menu__nav-item:disabled.is-active,
+.settings-menu__nav-item:disabled.is-active:hover,
+.settings-menu__nav-item:disabled.is-active:focus,
+.settings-menu__nav-item.is-unavailable.is-active,
+.settings-menu__nav-item.is-unavailable.is-active:hover,
+.settings-menu__nav-item.is-unavailable.is-active:focus {
+  background: transparent;
+  background-color: transparent;
+  color: #5c6b7c;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Keep option tiles distinct from the primary orange button style. */
 .lang-menu__option,
 .currency-menu__option {
@@ -1045,6 +1087,18 @@ button:hover { background-color: #ffaa33; }
 .notifications-menu__option.is-selected {
   background-color: transparent;
   color: #d5dde8;
+}
+
+.notifications-menu__option:disabled,
+.notifications-menu__option:disabled:hover,
+.notifications-menu__option:disabled:focus,
+.notifications-menu__option:disabled.is-selected {
+  background: transparent;
+  background-color: transparent;
+  color: #5c6b7c;
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 button:disabled {

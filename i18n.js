@@ -175,22 +175,30 @@ const translations = {
     notifications: "Notifications",
     notificationsOn: "On",
     notificationsOff: "Off",
-    notificationsUnsupported: "Unavailable",
     notifyToggleOn: "ON",
     notifyToggleOff: "OFF",
     notifyPrefNewBlock: "New block mined",
     notifyPrefNewBlockDesc: "Alert when a new Bitcoin block is mined.",
+    notifyPrefDifficulty: "Difficulty adjustment",
+    notifyPrefDifficultyDesc:
+      "Alert when Bitcoin mining difficulty adjusts (every 2,016 blocks).",
+    notifyPrefHalving: "Halving",
+    notifyPrefHalvingDesc:
+      "Alert when a Bitcoin halving occurs (every 210,000 blocks).",
     notifyPrefTxConfirmed: "Transaction confirmed",
-    notifyPrefTxConfirmedDesc: "Alert when the open transaction confirms on-chain.",
+    notifyPrefTxConfirmedDesc:
+      "Alert when the open transaction confirms, or when a transaction on the open address confirms.",
     notifyPrefAddressNewTx: "New address transaction",
     notifyPrefAddressNewTxDesc: "Alert when a new transaction appears on the open address.",
-    notifyPrefAddressTxConfirmed: "Address transaction confirmed",
-    notifyPrefAddressTxConfirmedDesc: "Alert when a transaction on the open address confirms.",
     notifyNewBlock: "New block mined",
+    notifyDifficulty: "Difficulty adjusted",
+    notifyHalving: "Bitcoin halving",
     notifyTxConfirmed: "Transaction confirmed",
     notifyAddressNewTx: "New transaction",
-    notifyAddressTxConfirmed: "Transaction confirmed",
     notifyBodyBlock: "Block height: {height}",
+    notifyBodyDifficulty: "Difficulty retarget at block {height}.",
+    notifyBodyHalving:
+      "Subsidy halved at block {height}. New subsidy: {subsidy} BTC.",
     notifyBodyTx: "Transaction {txid}",
     notifyBodyAddress: "Address {address}",
     notifyTestTitle: "Notifications enabled",
@@ -425,22 +433,30 @@ const translations = {
     notifications: "Notificações",
     notificationsOn: "Ligadas",
     notificationsOff: "Desligadas",
-    notificationsUnsupported: "Indisponível",
     notifyToggleOn: "ON",
     notifyToggleOff: "OFF",
     notifyPrefNewBlock: "Novo bloco minerado",
     notifyPrefNewBlockDesc: "Alerta quando um novo bloco Bitcoin é minerado.",
+    notifyPrefDifficulty: "Ajuste de dificuldade",
+    notifyPrefDifficultyDesc:
+      "Alerta quando a dificuldade de mineração do Bitcoin ajusta (a cada 2.016 blocos).",
+    notifyPrefHalving: "Halving",
+    notifyPrefHalvingDesc:
+      "Alerta quando ocorre um halving do Bitcoin (a cada 210.000 blocos).",
     notifyPrefTxConfirmed: "Transação confirmada",
-    notifyPrefTxConfirmedDesc: "Alerta quando a transação aberta confirma na blockchain.",
+    notifyPrefTxConfirmedDesc:
+      "Alerta quando a transação aberta confirma, ou quando uma transação do endereço aberto confirma.",
     notifyPrefAddressNewTx: "Nova transação no endereço",
     notifyPrefAddressNewTxDesc: "Alerta quando uma nova transação aparece no endereço aberto.",
-    notifyPrefAddressTxConfirmed: "Transação do endereço confirmada",
-    notifyPrefAddressTxConfirmedDesc: "Alerta quando uma transação do endereço aberto confirma.",
     notifyNewBlock: "Novo bloco minerado",
+    notifyDifficulty: "Dificuldade ajustada",
+    notifyHalving: "Halving do Bitcoin",
     notifyTxConfirmed: "Transação confirmada",
     notifyAddressNewTx: "Nova transação",
-    notifyAddressTxConfirmed: "Transação confirmada",
     notifyBodyBlock: "Altura do bloco: {height}",
+    notifyBodyDifficulty: "Retarget de dificuldade no bloco {height}.",
+    notifyBodyHalving:
+      "Subsídio reduzido pela metade no bloco {height}. Novo subsídio: {subsidy} BTC.",
     notifyBodyTx: "Transação {txid}",
     notifyBodyAddress: "Endereço {address}",
     notifyTestTitle: "Notificações ativadas",
@@ -678,22 +694,30 @@ const translations = {
     notifications: "Notificaciones",
     notificationsOn: "Activadas",
     notificationsOff: "Desactivadas",
-    notificationsUnsupported: "No disponible",
     notifyToggleOn: "ON",
     notifyToggleOff: "OFF",
     notifyPrefNewBlock: "Nuevo bloque minado",
     notifyPrefNewBlockDesc: "Aviso cuando se mina un nuevo bloque de Bitcoin.",
+    notifyPrefDifficulty: "Ajuste de dificultad",
+    notifyPrefDifficultyDesc:
+      "Aviso cuando se ajusta la dificultad de minería de Bitcoin (cada 2.016 bloques).",
+    notifyPrefHalving: "Halving",
+    notifyPrefHalvingDesc:
+      "Aviso cuando ocurre un halving de Bitcoin (cada 210.000 bloques).",
     notifyPrefTxConfirmed: "Transacción confirmada",
-    notifyPrefTxConfirmedDesc: "Aviso cuando la transacción abierta se confirma en cadena.",
+    notifyPrefTxConfirmedDesc:
+      "Aviso cuando la transacción abierta se confirma, o cuando se confirma una transacción de la dirección abierta.",
     notifyPrefAddressNewTx: "Nueva transacción en la dirección",
     notifyPrefAddressNewTxDesc: "Aviso cuando aparece una nueva transacción en la dirección abierta.",
-    notifyPrefAddressTxConfirmed: "Transacción de la dirección confirmada",
-    notifyPrefAddressTxConfirmedDesc: "Aviso cuando se confirma una transacción de la dirección abierta.",
     notifyNewBlock: "Nuevo bloque minado",
+    notifyDifficulty: "Dificultad ajustada",
+    notifyHalving: "Halving de Bitcoin",
     notifyTxConfirmed: "Transacción confirmada",
     notifyAddressNewTx: "Nueva transacción",
-    notifyAddressTxConfirmed: "Transacción confirmada",
     notifyBodyBlock: "Altura del bloque: {height}",
+    notifyBodyDifficulty: "Retarget de dificultad en el bloque {height}.",
+    notifyBodyHalving:
+      "La recompensa se redujo a la mitad en el bloque {height}. Nueva recompensa: {subsidy} BTC.",
     notifyBodyTx: "Transacción {txid}",
     notifyBodyAddress: "Dirección {address}",
     notifyTestTitle: "Notificaciones activadas",
@@ -931,22 +955,30 @@ const translations = {
     notifications: "Notifications",
     notificationsOn: "Activées",
     notificationsOff: "Désactivées",
-    notificationsUnsupported: "Indisponible",
     notifyToggleOn: "ON",
     notifyToggleOff: "OFF",
     notifyPrefNewBlock: "Nouveau bloc miné",
     notifyPrefNewBlockDesc: "Alerte lorsqu'un nouveau bloc Bitcoin est miné.",
+    notifyPrefDifficulty: "Ajustement de difficulté",
+    notifyPrefDifficultyDesc:
+      "Alerte lorsque la difficulté de minage de Bitcoin s'ajuste (tous les 2 016 blocs).",
+    notifyPrefHalving: "Halving",
+    notifyPrefHalvingDesc:
+      "Alerte lorsqu'un halving de Bitcoin a lieu (tous les 210 000 blocs).",
     notifyPrefTxConfirmed: "Transaction confirmée",
-    notifyPrefTxConfirmedDesc: "Alerte lorsque la transaction ouverte se confirme on-chain.",
+    notifyPrefTxConfirmedDesc:
+      "Alerte lorsque la transaction ouverte se confirme, ou lorsqu'une transaction de l'adresse ouverte se confirme.",
     notifyPrefAddressNewTx: "Nouvelle transaction sur l'adresse",
     notifyPrefAddressNewTxDesc: "Alerte lorsqu'une nouvelle transaction apparaît sur l'adresse ouverte.",
-    notifyPrefAddressTxConfirmed: "Transaction de l'adresse confirmée",
-    notifyPrefAddressTxConfirmedDesc: "Alerte lorsqu'une transaction de l'adresse ouverte se confirme.",
     notifyNewBlock: "Nouveau bloc miné",
+    notifyDifficulty: "Difficulté ajustée",
+    notifyHalving: "Halving de Bitcoin",
     notifyTxConfirmed: "Transaction confirmée",
     notifyAddressNewTx: "Nouvelle transaction",
-    notifyAddressTxConfirmed: "Transaction confirmée",
     notifyBodyBlock: "Hauteur du bloc : {height}",
+    notifyBodyDifficulty: "Retarget de difficulté au bloc {height}.",
+    notifyBodyHalving:
+      "La subvention a été divisée par deux au bloc {height}. Nouvelle subvention : {subsidy} BTC.",
     notifyBodyTx: "Transaction {txid}",
     notifyBodyAddress: "Adresse {address}",
     notifyTestTitle: "Notifications activées",
@@ -1184,22 +1216,30 @@ const translations = {
     notifications: "通知",
     notificationsOn: "オン",
     notificationsOff: "オフ",
-    notificationsUnsupported: "利用不可",
     notifyToggleOn: "ON",
     notifyToggleOff: "OFF",
     notifyPrefNewBlock: "新しいブロックが採掘された",
     notifyPrefNewBlockDesc: "新しいBitcoinブロックが採掘されたときに通知します。",
+    notifyPrefDifficulty: "難易度調整",
+    notifyPrefDifficultyDesc:
+      "Bitcoinの採掘難易度が調整されたときに通知します（2,016ブロックごと）。",
+    notifyPrefHalving: "半減期",
+    notifyPrefHalvingDesc:
+      "Bitcoinの半減期が発生したときに通知します（210,000ブロックごと）。",
     notifyPrefTxConfirmed: "トランザクションが確認された",
-    notifyPrefTxConfirmedDesc: "表示中のトランザクションがチェーン上で確認されたときに通知します。",
+    notifyPrefTxConfirmedDesc:
+      "表示中のトランザクション、または表示中のアドレスのトランザクションが確認されたときに通知します。",
     notifyPrefAddressNewTx: "アドレスの新しいトランザクション",
     notifyPrefAddressNewTxDesc: "表示中のアドレスに新しいトランザクションが現れたときに通知します。",
-    notifyPrefAddressTxConfirmed: "アドレスのトランザクションが確認された",
-    notifyPrefAddressTxConfirmedDesc: "表示中のアドレスのトランザクションが確認されたときに通知します。",
     notifyNewBlock: "新しいブロックが採掘されました",
+    notifyDifficulty: "難易度が調整されました",
+    notifyHalving: "Bitcoinの半減期",
     notifyTxConfirmed: "トランザクションが確認されました",
     notifyAddressNewTx: "新しいトランザクション",
-    notifyAddressTxConfirmed: "トランザクションが確認されました",
     notifyBodyBlock: "ブロック高: {height}",
+    notifyBodyDifficulty: "ブロック {height} で難易度が再調整されました。",
+    notifyBodyHalving:
+      "ブロック {height} で報酬が半減しました。新しい報酬: {subsidy} BTC。",
     notifyBodyTx: "トランザクション {txid}",
     notifyBodyAddress: "アドレス {address}",
     notifyTestTitle: "通知が有効になりました",
@@ -1578,6 +1618,13 @@ const SETTINGS_PANEL_IDS = {
 
 function setSettingsPanel(panel) {
   if (!SETTINGS_PANELS.includes(panel)) return;
+  if (
+    panel === "notifications" &&
+    typeof isNotificationApiAvailable === "function" &&
+    !isNotificationApiAvailable()
+  ) {
+    return;
+  }
   currentSettingsPanel = panel;
 
   document.querySelectorAll(".settings-menu__nav-item").forEach((item) => {
@@ -1716,6 +1763,7 @@ function initSettings() {
   settingsMenu.querySelectorAll(".settings-menu__nav-item").forEach((item) => {
     item.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (item.disabled) return;
       setSettingsPanel(item.dataset.settingsPanel);
     });
   });
@@ -1723,6 +1771,7 @@ function initSettings() {
   notifyMenu?.querySelectorAll(".notifications-menu__option").forEach((option) => {
     option.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (option.disabled) return;
       const type = option.dataset.notify;
       if (!type || typeof setNotificationEnabled !== "function") return;
 

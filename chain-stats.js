@@ -964,10 +964,13 @@ async function fetchBlockHeight() {
       previousHeight != null &&
       Number.isFinite(Number(previousHeight)) &&
       Number.isFinite(Number(height)) &&
-      Number(height) > Number(previousHeight) &&
-      typeof notifyNewBlock === "function"
+      Number(height) > Number(previousHeight)
     ) {
-      notifyNewBlock(height);
+      if (typeof onBlockHeightAdvanced === "function") {
+        onBlockHeightAdvanced(previousHeight, height);
+      } else if (typeof notifyNewBlock === "function") {
+        notifyNewBlock(height);
+      }
     }
     blockHeightWatchReady = true;
     saveCachedMarketMetrics();

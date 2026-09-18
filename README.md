@@ -66,7 +66,7 @@ The gear menu offers:
 
 - **Language** — English or Portuguese (`pt-BR`). Labels, errors, date formatting, and re-render of open results update immediately.
 - **Currency** — USD or BRL for balances and the Valuation price card. Live quotes come from exchange tickers ([Binance](https://api.binance.com) `BTCUSDT` / `BTCBRL`, then [Coinbase](https://api.coinbase.com) spot), polled about once a second **only while the price is on screen** (Valuation page, or an address with a visible fiat balance). The tab being hidden, Network, home, transactions, and Lightning views do not hit the price APIs. If the live tickers fail, USD falls back to mempool.space `GET /api/v1/prices` and BRL to [CoinGecko](https://api.coingecko.com). The last good value stays up if a call fails.
-- **Notifications** — optional browser notifications, each toggleable on its own: new block mined; watched transaction confirmed (while a tx is open); new transaction on the open address; confirmation of a transaction on the open address. Enabling a type asks for browser permission and sends a test toast to Windows. Alerts keep working if the tab is minimized, but the page must stay open (do not close the tab or the browser). Prefer https or localhost; `file://` often blocks notifications. Silent payment lookups never fire address notifications, because those outputs cannot be scanned here.
+- **Notifications** — optional browser notifications, each toggleable on its own: new block mined; difficulty adjustment (every 2,016 blocks); halving (every 210,000 blocks); transaction confirmed (the open transaction, or a transaction on the open address); new transaction on the open address. Enabling a type asks for browser permission and sends a test toast to Windows. Alerts keep working if the tab is minimized, but the page must stay open (do not close the tab or the browser). Prefer https or localhost; `file://` often blocks notifications. Silent payment lookups never fire address notifications, because those outputs cannot be scanned here.
 - **About** — short in-app summary from `about.js` (what you can look up, tips, data sources). Not a full README clone.
 
 ### Falling mempool blocks
@@ -299,7 +299,7 @@ After the first successful lookup (and after a user click unlocks audio), auto-r
 
 Mute with the bell in the nav. Preference is stored in `localStorage`.
 
-Browser notifications (Settings → Notifications) are separate from sounds. Each type can be enabled on its own and uses the Notification API. Address mempool / confirmation notifications only fire while that address result is open; transaction-confirmed notifications only fire while that tx is open. New-block notifications are global.
+Browser notifications (Settings → Notifications) are separate from sounds. Each type can be enabled on its own and uses the Notification API. Address mempool notifications only fire while that address result is open. Transaction-confirmed notifications fire while a tx is open, or when a transaction on the open address confirms. New-block, difficulty-adjustment, and halving notifications are global.
 
 ### Exposed public key
 

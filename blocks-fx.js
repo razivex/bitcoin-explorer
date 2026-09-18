@@ -475,7 +475,9 @@ function applyIncomingBlockHeight(height, { notify = false } = {}) {
   }
 
   if (notify && hadPrevious && nextHeight > previousHeight) {
-    if (typeof notifyNewBlock === "function") {
+    if (typeof onBlockHeightAdvanced === "function") {
+      onBlockHeightAdvanced(previousHeight, nextHeight);
+    } else if (typeof notifyNewBlock === "function") {
       notifyNewBlock(nextHeight);
     }
   }

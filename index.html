@@ -665,6 +665,38 @@
             <button
               class="notifications-menu__option"
               type="button"
+              data-notify="difficultyAdjustment"
+              role="checkbox"
+              aria-checked="false"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label" data-i18n="notifyPrefDifficulty">Difficulty adjustment</span>
+                <span class="notifications-menu__toggle" aria-hidden="true">
+                  <span class="notifications-menu__toggle-on" data-i18n="notifyToggleOn">ON</span>
+                  <span class="notifications-menu__toggle-off" data-i18n="notifyToggleOff">OFF</span>
+                </span>
+              </span>
+              <span class="notifications-menu__desc" data-i18n="notifyPrefDifficultyDesc">Alert when Bitcoin mining difficulty adjusts (every 2,016 blocks).</span>
+            </button>
+            <button
+              class="notifications-menu__option"
+              type="button"
+              data-notify="halving"
+              role="checkbox"
+              aria-checked="false"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label" data-i18n="notifyPrefHalving">Halving</span>
+                <span class="notifications-menu__toggle" aria-hidden="true">
+                  <span class="notifications-menu__toggle-on" data-i18n="notifyToggleOn">ON</span>
+                  <span class="notifications-menu__toggle-off" data-i18n="notifyToggleOff">OFF</span>
+                </span>
+              </span>
+              <span class="notifications-menu__desc" data-i18n="notifyPrefHalvingDesc">Alert when a Bitcoin halving occurs (every 210,000 blocks).</span>
+            </button>
+            <button
+              class="notifications-menu__option"
+              type="button"
               data-notify="txConfirmed"
               role="checkbox"
               aria-checked="false"
@@ -676,7 +708,7 @@
                   <span class="notifications-menu__toggle-off" data-i18n="notifyToggleOff">OFF</span>
                 </span>
               </span>
-              <span class="notifications-menu__desc" data-i18n="notifyPrefTxConfirmedDesc">Alert when the open transaction confirms on-chain.</span>
+              <span class="notifications-menu__desc" data-i18n="notifyPrefTxConfirmedDesc">Alert when the open transaction confirms, or when a transaction on the open address confirms.</span>
             </button>
             <button
               class="notifications-menu__option"
@@ -693,22 +725,6 @@
                 </span>
               </span>
               <span class="notifications-menu__desc" data-i18n="notifyPrefAddressNewTxDesc">Alert when a new transaction appears on the open address.</span>
-            </button>
-            <button
-              class="notifications-menu__option"
-              type="button"
-              data-notify="addressTxConfirmed"
-              role="checkbox"
-              aria-checked="false"
-            >
-              <span class="notifications-menu__header">
-                <span class="notifications-menu__label" data-i18n="notifyPrefAddressTxConfirmed">Address transaction confirmed</span>
-                <span class="notifications-menu__toggle" aria-hidden="true">
-                  <span class="notifications-menu__toggle-on" data-i18n="notifyToggleOn">ON</span>
-                  <span class="notifications-menu__toggle-off" data-i18n="notifyToggleOff">OFF</span>
-                </span>
-              </span>
-              <span class="notifications-menu__desc" data-i18n="notifyPrefAddressTxConfirmedDesc">Alert when a transaction on the open address confirms.</span>
             </button>
           </div>
         </section>
