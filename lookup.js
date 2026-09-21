@@ -312,20 +312,28 @@ function goToHome(event) {
 }
 
 /**
- * Switch between the check search card and Network / Valuation / Settings pages.
+ * Switch between the check search card and Network / Valuation pages.
+ * Settings is a popup overlay and does not replace the current card.
  * @param {"check" | "network" | "valuation" | "settings"} view
  */
 function showAppView(view) {
-  const next =
-    view === "network" || view === "valuation" || view === "settings"
-      ? view
-      : "check";
+  if (view === "settings") {
+    if (typeof openSettingsMenu === "function") {
+      openSettingsMenu();
+    }
+    return;
+  }
+
+  if (typeof closeSettingsMenu === "function") {
+    closeSettingsMenu({ restoreFocus: false });
+  }
+
+  const next = view === "network" || view === "valuation" ? view : "check";
 
   const views = [
     ["check", AppDom.checkViewEl],
     ["network", AppDom.networkViewEl],
     ["valuation", AppDom.valuationViewEl],
-    ["settings", AppDom.settingsViewEl],
   ];
 
   for (const [name, el] of views) {
@@ -335,21 +343,11 @@ function showAppView(view) {
 
   AppDom.navNetworkBtn?.classList.toggle("is-active", next === "network");
   AppDom.navValuationBtn?.classList.toggle("is-active", next === "valuation");
-  AppDom.settingsToggleBtn?.classList.toggle("is-active", next === "settings");
-  AppDom.settingsToggleBtn?.setAttribute("aria-pressed", String(next === "settings"));
 
   if (next === "network" || next === "valuation") {
     if (typeof updateBlockHeightTooltip === "function") {
       updateBlockHeightTooltip();
     }
-  }
-
-  if (next === "settings" && typeof setSettingsPanel === "function") {
-    setSettingsPanel(
-      typeof getCurrentSettingsPanel === "function"
-        ? getCurrentSettingsPanel()
-        : "language",
-    );
   }
 
   if (typeof syncLivePricePolling === "function") {
@@ -369,6 +367,14 @@ function bindNavViewEvents() {
     showAppView("valuation");
   });
   AppDom.settingsToggleBtn?.addEventListener("click", () => {
+    if (typeof isSettingsOpen === "function" && isSettingsOpen()) {
+      closeSettingsMenu();
+      return;
+    }
+    if (typeof openSettingsMenu === "function") {
+      openSettingsMenu();
+      return;
+    }
     showAppView("settings");
   });
 }

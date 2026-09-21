@@ -69,7 +69,9 @@
         aria-label="Settings"
         title="Settings"
         aria-pressed="false"
-        aria-controls="settingsView"
+        aria-expanded="false"
+        aria-haspopup="dialog"
+        aria-controls="settingsOverlay"
       >
         <svg class="settings-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.05-.7-1.65-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.6.24-1.15.57-1.65.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.05.7 1.65.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.6-.24 1.15-.57 1.65-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
@@ -510,8 +512,28 @@
     </p>
   </main>
 
-  <main id="settingsView" class="card settings-view app-view" data-view="settings" hidden>
-    <h1 data-i18n="settings">Settings</h1>
+  <div id="settingsOverlay" class="settings-overlay" hidden>
+  <div
+    id="settingsView"
+    class="card settings-view stats-view"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="settingsTitle"
+    tabindex="-1"
+  >
+    <div class="settings-view__header">
+      <h1 id="settingsTitle" data-i18n="settings">Settings</h1>
+      <button
+        id="settingsCloseBtn"
+        class="settings-view__close"
+        type="button"
+        data-i18n="aboutClose"
+        data-i18n-attr="aria-label"
+        aria-label="Close"
+      >
+        ×
+      </button>
+    </div>
     <div
       id="settingsMenu"
       class="settings-menu"
@@ -575,38 +597,85 @@
           role="tabpanel"
           aria-labelledby="settingsNavLanguage"
         >
-          <ul id="langMenu" class="lang-menu settings-option-grid" role="listbox">
-            <li role="presentation">
-              <button class="lang-menu__option lang-menu__option--en" type="button" data-lang="en" role="option" aria-label="English">
-                <span class="lang-menu__flag" aria-hidden="true"></span>
-                <span class="lang-menu__name">EN</span>
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="lang-menu__option lang-menu__option--pt-BR" type="button" data-lang="pt-BR" role="option" aria-label="Português">
-                <span class="lang-menu__flag" aria-hidden="true"></span>
-                <span class="lang-menu__name">PT</span>
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="lang-menu__option lang-menu__option--es" type="button" data-lang="es" role="option" aria-label="Español">
-                <span class="lang-menu__flag" aria-hidden="true"></span>
-                <span class="lang-menu__name">ES</span>
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="lang-menu__option lang-menu__option--fr" type="button" data-lang="fr" role="option" aria-label="Français">
-                <span class="lang-menu__flag" aria-hidden="true"></span>
-                <span class="lang-menu__name">FR</span>
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="lang-menu__option lang-menu__option--ja" type="button" data-lang="ja" role="option" aria-label="日本語">
-                <span class="lang-menu__flag" aria-hidden="true"></span>
-                <span class="lang-menu__name">JA</span>
-              </button>
-            </li>
-          </ul>
+          <div
+            id="langMenu"
+            class="notifications-menu lang-menu"
+            role="radiogroup"
+            data-i18n="language"
+            data-i18n-attr="aria-label"
+            aria-label="Language"
+          >
+            <button
+              class="notifications-menu__option lang-menu__option lang-menu__option--en"
+              type="button"
+              data-lang="en"
+              role="radio"
+              aria-checked="false"
+              aria-label="English"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label">English</span>
+                <span class="settings-choice__symbol lang-menu__flag" aria-hidden="true"></span>
+              </span>
+              <span class="notifications-menu__desc">EN</span>
+            </button>
+            <button
+              class="notifications-menu__option lang-menu__option lang-menu__option--pt-BR"
+              type="button"
+              data-lang="pt-BR"
+              role="radio"
+              aria-checked="false"
+              aria-label="Português"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label">Português</span>
+                <span class="settings-choice__symbol lang-menu__flag" aria-hidden="true"></span>
+              </span>
+              <span class="notifications-menu__desc">PT</span>
+            </button>
+            <button
+              class="notifications-menu__option lang-menu__option lang-menu__option--es"
+              type="button"
+              data-lang="es"
+              role="radio"
+              aria-checked="false"
+              aria-label="Español"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label">Español</span>
+                <span class="settings-choice__symbol lang-menu__flag" aria-hidden="true"></span>
+              </span>
+              <span class="notifications-menu__desc">ES</span>
+            </button>
+            <button
+              class="notifications-menu__option lang-menu__option lang-menu__option--fr"
+              type="button"
+              data-lang="fr"
+              role="radio"
+              aria-checked="false"
+              aria-label="Français"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label">Français</span>
+                <span class="settings-choice__symbol lang-menu__flag" aria-hidden="true"></span>
+              </span>
+              <span class="notifications-menu__desc">FR</span>
+            </button>
+            <button
+              class="notifications-menu__option lang-menu__option lang-menu__option--ja"
+              type="button"
+              data-lang="ja"
+              role="radio"
+              aria-checked="false"
+              aria-label="日本語"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label">日本語</span>
+                <span class="settings-choice__symbol lang-menu__flag" aria-hidden="true"></span>
+              </span>
+              <span class="notifications-menu__desc">JA</span>
+            </button>
+          </div>
         </section>
         <section
           id="settingsPanelCurrency"
@@ -615,28 +684,79 @@
           aria-labelledby="settingsNavCurrency"
           hidden
         >
-          <ul id="currencyMenu" class="currency-menu settings-option-grid" role="listbox">
-            <li role="presentation">
-              <button class="currency-menu__option" type="button" data-currency="USD" role="option" aria-label="USD">
-                USD
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="currency-menu__option" type="button" data-currency="BRL" role="option" aria-label="BRL">
-                BRL
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="currency-menu__option" type="button" data-currency="EUR" role="option" aria-label="EUR">
-                EUR
-              </button>
-            </li>
-            <li role="presentation">
-              <button class="currency-menu__option" type="button" data-currency="JPY" role="option" aria-label="JPY">
-                JPY
-              </button>
-            </li>
-          </ul>
+          <div
+            id="currencyMenu"
+            class="notifications-menu currency-menu"
+            role="radiogroup"
+            data-i18n="currency"
+            data-i18n-attr="aria-label"
+            aria-label="Currency"
+          >
+            <button
+              class="notifications-menu__option currency-menu__option"
+              type="button"
+              data-currency="USD"
+              role="radio"
+              aria-checked="false"
+              data-i18n="currencyNameUsd"
+              data-i18n-attr="aria-label"
+              aria-label="US Dollar"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label" data-i18n="currencyNameUsd">US Dollar</span>
+                <span class="settings-choice__symbol currency-menu__symbol" aria-hidden="true">$</span>
+              </span>
+              <span class="notifications-menu__desc">USD</span>
+            </button>
+            <button
+              class="notifications-menu__option currency-menu__option"
+              type="button"
+              data-currency="BRL"
+              role="radio"
+              aria-checked="false"
+              data-i18n="currencyNameBrl"
+              data-i18n-attr="aria-label"
+              aria-label="Brazilian Real"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label" data-i18n="currencyNameBrl">Brazilian Real</span>
+                <span class="settings-choice__symbol currency-menu__symbol" aria-hidden="true">R$</span>
+              </span>
+              <span class="notifications-menu__desc">BRL</span>
+            </button>
+            <button
+              class="notifications-menu__option currency-menu__option"
+              type="button"
+              data-currency="EUR"
+              role="radio"
+              aria-checked="false"
+              data-i18n="currencyNameEur"
+              data-i18n-attr="aria-label"
+              aria-label="Euro"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label" data-i18n="currencyNameEur">Euro</span>
+                <span class="settings-choice__symbol currency-menu__symbol" aria-hidden="true">€</span>
+              </span>
+              <span class="notifications-menu__desc">EUR</span>
+            </button>
+            <button
+              class="notifications-menu__option currency-menu__option"
+              type="button"
+              data-currency="JPY"
+              role="radio"
+              aria-checked="false"
+              data-i18n="currencyNameJpy"
+              data-i18n-attr="aria-label"
+              aria-label="Japanese Yen"
+            >
+              <span class="notifications-menu__header">
+                <span class="notifications-menu__label" data-i18n="currencyNameJpy">Japanese Yen</span>
+                <span class="settings-choice__symbol currency-menu__symbol" aria-hidden="true">¥</span>
+              </span>
+              <span class="notifications-menu__desc">JPY</span>
+            </button>
+          </div>
         </section>
         <section
           id="settingsPanelNotifications"
@@ -745,7 +865,8 @@
       <span data-i18n="footerCreatedBy">Created by</span>
       <a href="https://github.com/razivex" target="_blank" rel="noopener noreferrer">@razivex</a>
     </p>
-  </main>
+  </div>
+  </div>
 
   <nav class="social-links" data-i18n="socialLinks" data-i18n-attr="aria-label" aria-label="Social links">
     <a href="https://x.com/AndreRvza" target="_blank" rel="noopener noreferrer" aria-label="X — AndreRvza">

@@ -91,6 +91,8 @@ window.AppDom = {
   networkViewEl: document.getElementById("networkView"),
   valuationViewEl: document.getElementById("valuationView"),
   settingsViewEl: document.getElementById("settingsView"),
+  settingsOverlayEl: document.getElementById("settingsOverlay"),
+  settingsCloseBtn: document.getElementById("settingsCloseBtn"),
   navNetworkBtn: document.getElementById("navNetworkBtn"),
   navValuationBtn: document.getElementById("navValuationBtn"),
   settingsToggleBtn: document.getElementById("settingsToggleBtn"),

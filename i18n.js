@@ -172,6 +172,10 @@ const translations = {
     settingsPageSub: "Language, currency, notifications, and about",
     language: "Language",
     currency: "Currency",
+    currencyNameUsd: "US Dollar",
+    currencyNameBrl: "Brazilian Real",
+    currencyNameEur: "Euro",
+    currencyNameJpy: "Japanese Yen",
     notifications: "Notifications",
     notificationsOn: "On",
     notificationsOff: "Off",
@@ -430,6 +434,10 @@ const translations = {
     settingsPageSub: "Idioma, moeda, notificações e sobre",
     language: "Idioma",
     currency: "Moeda",
+    currencyNameUsd: "Dólar americano",
+    currencyNameBrl: "Real brasileiro",
+    currencyNameEur: "Euro",
+    currencyNameJpy: "Iene japonês",
     notifications: "Notificações",
     notificationsOn: "Ligadas",
     notificationsOff: "Desligadas",
@@ -691,6 +699,10 @@ const translations = {
     settingsPageSub: "Idioma, moneda, notificaciones y acerca de",
     language: "Idioma",
     currency: "Moneda",
+    currencyNameUsd: "Dólar estadounidense",
+    currencyNameBrl: "Real brasileño",
+    currencyNameEur: "Euro",
+    currencyNameJpy: "Yen japonés",
     notifications: "Notificaciones",
     notificationsOn: "Activadas",
     notificationsOff: "Desactivadas",
@@ -952,6 +964,10 @@ const translations = {
     settingsPageSub: "Langue, devise, notifications et à propos",
     language: "Langue",
     currency: "Devise",
+    currencyNameUsd: "Dollar américain",
+    currencyNameBrl: "Réal brésilien",
+    currencyNameEur: "Euro",
+    currencyNameJpy: "Yen japonais",
     notifications: "Notifications",
     notificationsOn: "Activées",
     notificationsOff: "Désactivées",
@@ -1213,6 +1229,10 @@ const translations = {
     settingsPageSub: "言語、通貨、通知、このアプリについて",
     language: "言語",
     currency: "通貨",
+    currencyNameUsd: "米ドル",
+    currencyNameBrl: "ブラジルレアル",
+    currencyNameEur: "ユーロ",
+    currencyNameJpy: "円",
     notifications: "通知",
     notificationsOn: "オン",
     notificationsOff: "オフ",
@@ -1513,6 +1533,7 @@ function scheduleI18nFit() {
     requestAnimationFrame(() => {
       if (gen !== i18nFitGen) return;
       fitI18nText();
+      if (isSettingsOpen()) applySettingsPopupSize();
     });
   });
 }
@@ -1556,6 +1577,7 @@ function applyStaticTranslations() {
   });
 
   updateSettingsUi();
+  loadSettingsAboutPanel();
   scheduleI18nFit();
 }
 
@@ -1578,12 +1600,14 @@ function updateSettingsUi() {
   document.querySelectorAll(".lang-menu__option").forEach((option) => {
     const isSelected = option.dataset.lang === currentLang;
     option.classList.toggle("is-selected", isSelected);
+    option.setAttribute("aria-checked", String(isSelected));
     option.setAttribute("aria-selected", String(isSelected));
   });
 
   document.querySelectorAll(".currency-menu__option").forEach((option) => {
     const isSelected = option.dataset.currency === currentCurrency;
     option.classList.toggle("is-selected", isSelected);
+    option.setAttribute("aria-checked", String(isSelected));
     option.setAttribute("aria-selected", String(isSelected));
   });
 
@@ -1647,21 +1671,115 @@ function getCurrentSettingsPanel() {
   return currentSettingsPanel;
 }
 
-function closeSettingsMenu() {
-  if (typeof showAppView === "function") {
-    const settingsView = document.getElementById("settingsView");
-    if (settingsView && !settingsView.hidden) {
-      showAppView("check");
-    }
+function isSettingsOpen() {
+  const overlay = document.getElementById("settingsOverlay");
+  return Boolean(overlay && !overlay.hidden);
+}
+
+function updateSettingsToggleState(open) {
+  const btn = document.getElementById("settingsToggleBtn");
+  if (!btn) return;
+  btn.classList.toggle("is-active", open);
+  btn.setAttribute("aria-pressed", String(open));
+  btn.setAttribute("aria-expanded", String(open));
+}
+
+function measureNetworkCardSize() {
+  const network = document.getElementById("networkView");
+  if (!network) return null;
+
+  const wasHidden = network.hidden;
+  const style = network.style;
+  const prev = {
+    position: style.position,
+    visibility: style.visibility,
+    pointerEvents: style.pointerEvents,
+    left: style.left,
+    top: style.top,
+    zIndex: style.zIndex,
+  };
+
+  if (wasHidden) {
+    network.hidden = false;
+    style.position = "fixed";
+    style.visibility = "hidden";
+    style.pointerEvents = "none";
+    style.left = "0";
+    style.top = "0";
+    style.zIndex = "-1";
+  }
+
+  const width = network.offsetWidth;
+  const height = network.offsetHeight;
+
+  if (wasHidden) {
+    network.hidden = true;
+    style.position = prev.position;
+    style.visibility = prev.visibility;
+    style.pointerEvents = prev.pointerEvents;
+    style.left = prev.left;
+    style.top = prev.top;
+    style.zIndex = prev.zIndex;
+  }
+
+  if (!width || !height) return null;
+  return { width, height };
+}
+
+function applySettingsPopupSize() {
+  const settings = document.getElementById("settingsView");
+  if (!settings) return;
+
+  const size = measureNetworkCardSize();
+  const pad = window.matchMedia("(max-width: 640px)").matches ? 32 : 48;
+  const maxW = Math.max(0, window.innerWidth - pad);
+  const maxH = Math.max(0, window.innerHeight - pad);
+
+  if (!size) {
+    settings.style.width = "";
+    settings.style.height = "";
+    settings.style.maxWidth = "";
+    settings.style.maxHeight = "";
+    return;
+  }
+
+  const width = Math.min(size.width, maxW);
+  const height = Math.min(size.height, maxH);
+  settings.style.width = `${width}px`;
+  settings.style.height = `${height}px`;
+  settings.style.maxWidth = `${width}px`;
+  settings.style.maxHeight = `${height}px`;
+}
+
+function closeSettingsMenu(options = {}) {
+  const overlay = document.getElementById("settingsOverlay");
+  if (!overlay || overlay.hidden) return;
+
+  overlay.hidden = true;
+  document.body.classList.remove("settings-open");
+  updateSettingsToggleState(false);
+
+  if (options.restoreFocus !== false) {
+    document.getElementById("settingsToggleBtn")?.focus();
   }
 }
 
 function openSettingsMenu() {
-  if (typeof showAppView === "function") {
-    showAppView("settings");
+  const overlay = document.getElementById("settingsOverlay");
+  if (!overlay) {
+    setSettingsPanel(currentSettingsPanel || "language");
     return;
   }
+
+  applySettingsPopupSize();
+  overlay.hidden = false;
+  document.body.classList.add("settings-open");
+  updateSettingsToggleState(true);
   setSettingsPanel(currentSettingsPanel || "language");
+  document.getElementById("settingsView")?.focus();
+  requestAnimationFrame(() => {
+    if (isSettingsOpen()) applySettingsPopupSize();
+  });
 }
 
 function setLanguage(lang) {
@@ -1714,9 +1832,19 @@ function renderAboutHtml(text) {
 }
 
 function getAboutText() {
-  // Embedded in about.js (copy of README.md) so About works offline and via file://.
-  if (typeof window.ABOUT_TEXT === "string" && window.ABOUT_TEXT.trim()) {
-    return window.ABOUT_TEXT;
+  // Embedded in about.js so About works offline and via file://.
+  const texts = window.ABOUT_TEXT;
+  if (typeof texts === "string" && texts.trim()) {
+    return texts;
+  }
+  if (texts && typeof texts === "object") {
+    const localized = texts[currentLang];
+    if (typeof localized === "string" && localized.trim()) {
+      return localized;
+    }
+    if (typeof texts.en === "string" && texts.en.trim()) {
+      return texts.en;
+    }
   }
   return "";
 }
@@ -1751,6 +1879,9 @@ function initSettings() {
   applyStaticTranslations();
 
   const settingsMenu = document.getElementById("settingsMenu");
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const settingsView = document.getElementById("settingsView");
+  const settingsCloseBtn = document.getElementById("settingsCloseBtn");
   const langMenu = document.getElementById("langMenu");
   const currencyMenu = document.getElementById("currencyMenu");
   const notifyMenu = document.getElementById("notifyMenu");
@@ -1799,6 +1930,21 @@ function initSettings() {
     });
   });
 
+  settingsCloseBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeSettingsMenu();
+  });
+
+  settingsOverlay?.addEventListener("click", (event) => {
+    if (event.target === settingsOverlay) {
+      closeSettingsMenu();
+    }
+  });
+
+  settingsView?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
   aboutCloseBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     hideAboutModal();
@@ -1820,7 +1966,16 @@ function initSettings() {
 
     if (aboutOverlay && !aboutOverlay.hidden) {
       hideAboutModal();
+      return;
     }
+
+    if (isSettingsOpen()) {
+      closeSettingsMenu();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (isSettingsOpen()) applySettingsPopupSize();
   });
 
   bindI18nFitEvents();
@@ -1840,5 +1995,8 @@ window.showAboutModal = showAboutModal;
 window.hideAboutModal = hideAboutModal;
 window.setSettingsPanel = setSettingsPanel;
 window.getCurrentSettingsPanel = getCurrentSettingsPanel;
+window.openSettingsMenu = openSettingsMenu;
+window.closeSettingsMenu = closeSettingsMenu;
+window.isSettingsOpen = isSettingsOpen;
 window.fitI18nText = fitI18nText;
 window.scheduleI18nFit = scheduleI18nFit;
