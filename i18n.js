@@ -1581,6 +1581,16 @@ function applyStaticTranslations() {
   scheduleI18nFit();
 }
 
+function markSingleChoice(selector, attrName, currentValue) {
+  document.querySelectorAll(selector).forEach((option) => {
+    const isSelected = option.getAttribute(attrName) === currentValue;
+    option.disabled = false;
+    option.classList.toggle("is-selected", isSelected);
+    option.setAttribute("aria-checked", String(isSelected));
+    option.setAttribute("aria-selected", String(isSelected));
+  });
+}
+
 function updateSettingsUi() {
   const settingsLangFlag = document.getElementById("settingsLangFlag");
   if (settingsLangFlag) {
@@ -1597,23 +1607,12 @@ function updateSettingsUi() {
     settingsCurrencyValue.textContent = currentCurrency;
   }
 
-  document.querySelectorAll(".lang-menu__option").forEach((option) => {
-    const isSelected = option.dataset.lang === currentLang;
-    option.classList.toggle("is-selected", isSelected);
-    option.setAttribute("aria-checked", String(isSelected));
-    option.setAttribute("aria-selected", String(isSelected));
-  });
-
-  document.querySelectorAll(".currency-menu__option").forEach((option) => {
-    const isSelected = option.dataset.currency === currentCurrency;
-    option.classList.toggle("is-selected", isSelected);
-    option.setAttribute("aria-checked", String(isSelected));
-    option.setAttribute("aria-selected", String(isSelected));
-  });
-
   if (typeof updateNotificationsUi === "function") {
     updateNotificationsUi();
   }
+
+  markSingleChoice(".lang-menu__option", "data-lang", currentLang);
+  markSingleChoice(".currency-menu__option", "data-currency", currentCurrency);
 }
 
 const SETTINGS_PANELS = ["language", "currency", "notifications", "about"];
@@ -1665,6 +1664,8 @@ function setSettingsPanel(panel) {
   if (panel === "about") {
     loadSettingsAboutPanel();
   }
+
+  updateSettingsUi();
 }
 
 function getCurrentSettingsPanel() {
@@ -1775,6 +1776,7 @@ function openSettingsMenu() {
   overlay.hidden = false;
   document.body.classList.add("settings-open");
   updateSettingsToggleState(true);
+  updateSettingsUi();
   setSettingsPanel(currentSettingsPanel || "language");
   document.getElementById("settingsView")?.focus();
   requestAnimationFrame(() => {
@@ -1873,6 +1875,84 @@ function showAboutModal() {
   aboutBody.innerHTML = `<p class="about-modal__error">${escapeHtml(t("aboutLoadError"))}</p>`;
 }
 
+function bindMenuChoice(menu, optionSelector, applyValue) {
+  if (!menu) return;
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let moved = false;
+  let ignoreClick = false;
+  let ignoreClickTimer = 0;
+
+  const optionFromEvent = (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const option = target?.closest(optionSelector);
+    if (!option || !menu.contains(option) || option.disabled) return null;
+    return option;
+  };
+
+  menu.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    tracking = true;
+    moved = false;
+    startX = event.clientX;
+    startY = event.clientY;
+  });
+
+  menu.addEventListener("pointermove", (event) => {
+    if (!tracking) return;
+    if (Math.abs(event.clientX - startX) > 10 || Math.abs(event.clientY - startY) > 10) {
+      moved = true;
+    }
+  });
+
+  menu.addEventListener("pointercancel", () => {
+    tracking = false;
+    moved = true;
+  });
+
+  // A tap inside this scrollable pane often arrives as pointerup and then a
+  // click on whatever row sits under the finger after the label reflow.
+  // Apply the choice on pointerup and drop that follow-up click.
+  menu.addEventListener("pointerup", (event) => {
+    if (!tracking || event.pointerType === "mouse") {
+      tracking = false;
+      return;
+    }
+    const wasMoved = moved;
+    tracking = false;
+    if (wasMoved) return;
+    const option = optionFromEvent(event);
+    if (!option) return;
+    ignoreClick = true;
+    if (ignoreClickTimer) window.clearTimeout(ignoreClickTimer);
+    ignoreClickTimer = window.setTimeout(() => {
+      ignoreClick = false;
+      ignoreClickTimer = 0;
+    }, 500);
+    event.stopPropagation();
+    applyValue(option);
+  });
+
+  menu.addEventListener("click", (event) => {
+    if (ignoreClick) {
+      ignoreClick = false;
+      if (ignoreClickTimer) {
+        window.clearTimeout(ignoreClickTimer);
+        ignoreClickTimer = 0;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    const option = optionFromEvent(event);
+    if (!option) return;
+    event.stopPropagation();
+    applyValue(option);
+  });
+}
+
 function initSettings() {
   loadLanguagePreference();
   loadCurrencyPreference();
@@ -1916,18 +1996,12 @@ function initSettings() {
     });
   });
 
-  langMenu?.querySelectorAll(".lang-menu__option").forEach((option) => {
-    option.addEventListener("click", (event) => {
-      event.stopPropagation();
-      setLanguage(option.dataset.lang);
-    });
+  bindMenuChoice(langMenu, ".lang-menu__option", (option) => {
+    setLanguage(option.getAttribute("data-lang"));
   });
 
-  currencyMenu?.querySelectorAll(".currency-menu__option").forEach((option) => {
-    option.addEventListener("click", (event) => {
-      event.stopPropagation();
-      setCurrency(option.dataset.currency);
-    });
+  bindMenuChoice(currencyMenu, ".currency-menu__option", (option) => {
+    setCurrency(option.getAttribute("data-currency"));
   });
 
   settingsCloseBtn?.addEventListener("click", (event) => {

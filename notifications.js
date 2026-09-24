@@ -366,7 +366,9 @@ function updateNotificationsUi() {
     setSettingsPanel("language");
   }
 
-  document.querySelectorAll(".notifications-menu__option").forEach((option) => {
+  // Language and currency rows reuse this option class. Only real notification
+  // toggles may be disabled or have their checked state rewritten.
+  document.querySelectorAll("#notifyMenu [data-notify]").forEach((option) => {
     const type = option.dataset.notify;
     const enabled = Boolean(type && prefs[type]);
     option.classList.toggle("is-selected", enabled);
