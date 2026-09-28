@@ -191,7 +191,7 @@ const translations = {
       "Alert when a Bitcoin halving occurs (every 210,000 blocks).",
     notifyPrefTxConfirmed: "Transaction confirmed",
     notifyPrefTxConfirmedDesc:
-      "Alert when the open transaction confirms, or when a transaction on the open address confirms.",
+      "Alert when a transaction in the address confirms or the opened transaction confirms.",
     notifyPrefAddressNewTx: "New address transaction",
     notifyPrefAddressNewTxDesc: "Alert when a new transaction appears on the open address.",
     notifyNewBlock: "New block mined",
@@ -453,7 +453,7 @@ const translations = {
       "Alerta quando ocorre um halving do Bitcoin (a cada 210.000 blocos).",
     notifyPrefTxConfirmed: "Transação confirmada",
     notifyPrefTxConfirmedDesc:
-      "Alerta quando a transação aberta confirma, ou quando uma transação do endereço aberto confirma.",
+      "Alerta quando uma transação no endereço confirma ou a transação aberta confirma.",
     notifyPrefAddressNewTx: "Nova transação no endereço",
     notifyPrefAddressNewTxDesc: "Alerta quando uma nova transação aparece no endereço aberto.",
     notifyNewBlock: "Novo bloco minerado",
@@ -718,7 +718,7 @@ const translations = {
       "Aviso cuando ocurre un halving de Bitcoin (cada 210.000 bloques).",
     notifyPrefTxConfirmed: "Transacción confirmada",
     notifyPrefTxConfirmedDesc:
-      "Aviso cuando la transacción abierta se confirma, o cuando se confirma una transacción de la dirección abierta.",
+      "Aviso cuando una transacción en la dirección se confirma o la transacción abierta se confirma.",
     notifyPrefAddressNewTx: "Nueva transacción en la dirección",
     notifyPrefAddressNewTxDesc: "Aviso cuando aparece una nueva transacción en la dirección abierta.",
     notifyNewBlock: "Nuevo bloque minado",
@@ -983,7 +983,7 @@ const translations = {
       "Alerte lorsqu'un halving de Bitcoin a lieu (tous les 210 000 blocs).",
     notifyPrefTxConfirmed: "Transaction confirmée",
     notifyPrefTxConfirmedDesc:
-      "Alerte lorsque la transaction ouverte se confirme, ou lorsqu'une transaction de l'adresse ouverte se confirme.",
+      "Alerte lorsqu'une transaction dans l'adresse se confirme ou que la transaction ouverte se confirme.",
     notifyPrefAddressNewTx: "Nouvelle transaction sur l'adresse",
     notifyPrefAddressNewTxDesc: "Alerte lorsqu'une nouvelle transaction apparaît sur l'adresse ouverte.",
     notifyNewBlock: "Nouveau bloc miné",
@@ -1248,7 +1248,7 @@ const translations = {
       "Bitcoinの半減期が発生したときに通知します（210,000ブロックごと）。",
     notifyPrefTxConfirmed: "トランザクションが確認された",
     notifyPrefTxConfirmedDesc:
-      "表示中のトランザクション、または表示中のアドレスのトランザクションが確認されたときに通知します。",
+      "アドレス内のトランザクションが確認されたとき、または表示中のトランザクションが確認されたときに通知します。",
     notifyPrefAddressNewTx: "アドレスの新しいトランザクション",
     notifyPrefAddressNewTxDesc: "表示中のアドレスに新しいトランザクションが現れたときに通知します。",
     notifyNewBlock: "新しいブロックが採掘されました",
