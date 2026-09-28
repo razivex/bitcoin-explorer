@@ -569,7 +569,9 @@ body.settings-open {
 
 .notifications-menu__toggle {
   display: inline-flex;
+  align-items: stretch;
   flex-shrink: 0;
+  height: 16px;
   overflow: hidden;
   border: 1px solid #3d4f66;
   border-radius: 999px;
@@ -578,11 +580,13 @@ body.settings-open {
 
 .notifications-menu__toggle-on,
 .notifications-menu__toggle-off {
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  line-height: 1.2;
+  line-height: 1;
   color: #7f8fa3;
 }
 
